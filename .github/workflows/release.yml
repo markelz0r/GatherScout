@@ -1,0 +1,31 @@
+# Builds the addon zip with the BigWigs packager when a version tag is pushed
+# (annotated tag, e.g. `git tag -a 1.2.1 -m 1.2.1 && git push origin 1.2.1`).
+#
+# Always: GitHub release with the zip and release.json (WowUp "Install from URL" reads it).
+# CurseForge: when the CF_API_KEY secret is set and the TOC has ## X-Curse-Project-ID.
+# Wago Addons: when the WAGO_API_TOKEN secret is set and the TOC has ## X-Wago-ID.
+name: Package and release
+
+on:
+  push:
+    tags:
+      - '**'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      CF_API_KEY: ${{ secrets.CF_API_KEY }}
+      WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
+      GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Clone project
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Package and release
+        uses: BigWigsMods/packager@v2

@@ -1,0 +1,34 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\FrameXML\UI.xsd">
+  <!-- World map pin; behaviour lives in GatherScoutMapPinMixin (Map.lua) -->
+  <Frame name="GatherScoutMapPinTemplate" mixin="GatherScoutMapPinMixin" virtual="true" enableMouse="true">
+    <Size x="12" y="12"/>
+    <Layers>
+      <Layer level="BACKGROUND">
+        <Texture parentKey="Shadow">
+          <Anchors>
+            <Anchor point="TOPLEFT" x="-1" y="1"/>
+            <Anchor point="BOTTOMRIGHT" x="1" y="-1"/>
+          </Anchors>
+          <Color r="0" g="0" b="0" a="0.75"/>
+        </Texture>
+      </Layer>
+      <Layer level="ARTWORK">
+        <Texture parentKey="Texture" setAllPoints="true"/>
+      </Layer>
+      <Layer level="OVERLAY">
+        <Texture parentKey="Border" file="Interface\Minimap\MiniMap-TrackingBorder" hidden="true">
+          <Size x="64" y="64"/>
+          <Anchors>
+            <Anchor point="TOPLEFT" x="-8" y="6"/>
+          </Anchors>
+        </Texture>
+      </Layer>
+    </Layers>
+    <Scripts>
+      <OnLoad method="OnLoad"/>
+      <OnEnter method="OnMouseEnter"/>
+      <OnLeave method="OnMouseLeave"/>
+    </Scripts>
+  </Frame>
+</Ui>

@@ -1,0 +1,127 @@
+"""v2 smoke test: full scan with drops, chances, mob tooltip, card, world map. Usage: run_test2.py <addon> <harness> [auctionator]"""
+import sys, re
+from lupa import LuaRuntime
+sys.stdout.reconfigure(encoding='utf-8')
+ADDON, HARNESS = sys.argv[1], sys.argv[2]
+L = LuaRuntime(unpack_returned_tuples=True)
+L.execute(open(HARNESS, encoding='utf-8').read())
+if len(sys.argv) > 3:
+    L.execute('InstallAuctionator()')
+
+
+def strip(s):
+    s = str(s)
+    s = re.sub(r'\|c[0-9a-fA-F]{8}', '', s).replace('|r', '')
+    s = re.sub(r'\|TInterface\\MoneyFrame\\UI-(Gold|Silver|Copper)Icon[^|]*\|t', lambda m: {'Gold': 'g', 'Silver': 's', 'Copper': 'c'}[m.group(1)], s)
+    return re.sub(r'\|T[^|]*\|t', '[i]', s)
+
+
+def flush():
+    for line in L.eval('LOGS()').values():
+        print('  [chat]', strip(line))
+
+
+ns = L.eval('{}')
+files = [l.strip() for l in open(ADDON + '/GatherScout.toc', encoding='utf-8') if l.strip() and not l.startswith('#')]
+loader = L.eval('function(src, name, ns) local f = assert(load(src, "@" .. name)); f("GatherScout", ns) end')
+for f in files:
+    if f.endswith('.xml'):
+        continue
+    loader(open(ADDON + '/' + f.replace(chr(92), '/'), encoding='utf-8').read(), f, ns)
+fire, tick = L.eval('FireEvent'), L.eval('Tick')
+fire('ADDON_LOADED', 'GatherScout'); fire('PLAYER_LOGIN'); tick(2); flush()
+L.execute('PLAYER_LEVEL = 40')
+drops = ns.GEN.drops
+print('drops in data:', len(drops), 'DROP index:', len(ns.DROP))
+
+# AH contents: all MAT + some drops
+repl = L.eval('REPL')
+k = 1
+def put(item, count, unit):
+    global k
+    repl[k] = L.table(item, count, unit * count)
+    k += 1
+for id in list(ns.MAT.keys()):
+    put(id, 20, 500 + id % 300)
+for id, unit in [(12207, 9000), (12811, 25000), (5637, 300), (3182, 4000), (4337, 9000), (2409, 15000), (10285, 7000)]:
+    for j in range(3):
+        put(id, 5, unit + j * 100)
+
+print('== full scan (AH open, auto)')
+fire('AUCTION_HOUSE_SHOW')
+for _ in range(300):
+    tick(1)
+    if not ns.full.active and ns.Market().lastScan:
+        break
+flush()
+res = ns.Compute()
+rows = [res[i] for i in range(1, len(res) + 1)]
+dr = [r for r in rows if r.m.drop]
+print('rows', len(rows), 'drop rows', len(dr))
+for r in sorted(dr, key=lambda r: -(r.score or 0)):
+    print('  drop %-6s %-7s price=%s chance=%s guess=%s where=%s gph=%s' % (
+        r.id, r.m.c, strip(ns.Money(r.price)), r.chance, r.chanceGuess, strip(ns.WhereText(r.best, r.id)) if r.best else None,
+        strip(ns.Money(r.gph)) if r.gph else None))
+
+print('== mob tooltip: a Giant Egg dropper')
+npc = drops[12207].n[1]
+n = ns.GEN.npcs[npc]
+print('  npc', npc, n[6], n[7], 'lvl', n[1], n[2])
+L.execute('MOB_GUID = "Creature-0-1-2-3-%d-1"; MOB_TYPE = "Животное"; MOB_LEVEL = %d' % (npc, n[1]))
+ns.db.pins[12207] = True
+ns.Invalidate(); tick(2)
+lines = L.eval('FireUnitTooltip')(L.eval('MOB_GUID'))
+for i in range(1, len(lines) + 1):
+    print('   ', strip(lines[i]))
+fire('NAME_PLATE_UNIT_ADDED', 'nameplate1')
+print('  nameplate icon shown:', L.eval('TEST_PLATE.GatherScoutIcon and TEST_PLATE.GatherScoutIcon._shown'))
+
+print('== learned chance: loot the same corpse twice + 5 more kills')
+for j in range(6):
+    L.execute('LOOT = { { id = 12207, guid = "Creature-0-1-2-3-%d-%d", qty = 1 } }' % (npc, 100 + j))
+    fire('LOOT_OPENED')
+    if j == 0:
+        fire('LOOT_OPENED')  # reopened window must not double count
+print('  kills', ns.db.learned.kills[npc], 'got', ns.db.learned.npc[npc][12207], 'chance ->', ns.DropChance(12207, npc))
+
+print('== UI + card for a drop item')
+ns.UI_Toggle(); tick(2)
+ns.Card_Show(12207)
+card = L.eval('GatherScoutCard')
+print('  stats:\n    ' + strip(card.stats._text).replace('\n', '\n    '))
+print('  where:\n    ' + strip(card.where._text).replace('\n', '\n    '))
+search = L.eval('GatherScoutSearch')
+search._text = 'item1220'
+search._scripts.OnTextChanged(search)
+print('  search applied without errors; frame count label:', strip(L.eval('GatherScoutFrame.count._text')))
+
+print('== world map')
+ns.Map_Toggle(12207, True)
+print('  map opened:', L.eval('WorldMapFrame._shown'), 'map', L.eval('CUR_MAP'), 'pins', len(L.eval('PINS')))
+pins = L.eval('PINS')
+if len(pins):
+    p = pins[1]
+    p.OnMouseEnter(p)
+    gl = L.eval('GameTooltip._lines')
+    print('  pin tooltip:', ' / '.join(strip(gl[i]) for i in range(1, len(gl) + 1)))
+L.execute('CUR_MAP = 1415')
+prov = L.eval('WorldMapFrame._provider')
+prov.RefreshAllData(prov)
+print('  continent 1415 pins:', len(L.eval('PINS')))
+L.execute('CUR_MAP = 1414')
+prov.RefreshAllData(prov)
+print('  continent 1414 pins:', len(L.eval('PINS')))
+if len(L.eval('PINS')):
+    p = L.eval('PINS')[1]
+    p.OnMouseEnter(p)
+    gl = L.eval('GameTooltip._lines')
+    print('  agg tooltip:', ' / '.join(strip(gl[i]) for i in range(1, len(gl) + 1)))
+
+print('== node tooltips')
+for nm in ['Магороза', 'Медная жила', 'Мифриловые залежи', 'Copper Vein', 'Сундук']:
+    lines = L.eval('FireObjectTooltip')(nm)
+    print('  %s:' % nm, ' / '.join(strip(lines[i]) for i in range(1, len(lines) + 1)) or '(nothing)')
+print('== money:', strip(ns.Money(1234567)), '|', strip(ns.Money(98)), '|', strip(ns.Money(20598)))
+print('== lower:', ns.Lower('ЁЛКА Шерсть ABC'))
+flush()
+print('ALL OK')

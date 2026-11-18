@@ -1,0 +1,15 @@
+package-as: GatherScout
+
+enable-nolib-creation: no
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
+
+ignore:
+  - tools
+  - tests
+  - dist
+  - .github
+  - .gitignore
+  - .pkgmeta

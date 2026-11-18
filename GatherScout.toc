@@ -1,0 +1,22 @@
+## Interface: 16001
+## Title: GatherScout
+## Title-ruRU: GatherScout |cff7fd4ff(что фармить)|r
+## Notes: Scans the Auction House for gathering materials in demand and shows what you can farm safely at your level. Marks mobs that drop them.
+## Notes-ruRU: Сканирует аукцион, считает спрос на сырьё собирательных профессий и подсказывает, что выгодно и безопасно добывать на твоём уровне. Помечает мобов, с которых падает нужное сырьё.
+## Version: @project-version@
+## Author: markelz0r
+## SavedVariables: GatherScoutDB
+## X-License: GPL-3.0-or-later
+## X-Credits: zone/node/mob/loot data generated from QuestieDB (GPL-3.0) and CMaNGOS classic-db (GPL-3.0)
+## X-Website: https://github.com/markelz0r/GatherScout
+## IconTexture: Interface\Icons\INV_Misc_Herb_07
+
+Core.lua
+Data\Generated.lua
+Data\Materials.lua
+Analysis.lua
+Scanner.lua
+Mobs.lua
+Map.lua
+GatherScout.xml
+UI.lua

@@ -1,0 +1,6 @@
+dist/
+.release/
+.env
+__pycache__/
+*.pyc
+*.sql.gz
