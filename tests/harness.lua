@@ -1,5 +1,6 @@
 -- Minimal WoW API emulation to smoke-test GatherScout outside the game (Lua 5.4 via lupa).
 local unpack = table.unpack
+_G.unpack = _G.unpack or table.unpack   -- WoW's Lua 5.1 global
 math.log10 = math.log10 or function(x) return math.log(x, 10) end
 math.atan2 = math.atan2 or math.atan
 loadstring = loadstring or load
@@ -51,6 +52,11 @@ function methods:SetHeight(h) self._h = h end
 function methods:GetWidth() return self._w end
 function methods:GetHeight() return self._h end
 function methods:GetStringWidth() return #(self._text or "") * 4 end
+function methods:GetStringHeight()
+  local n = 1
+  for _ in (self._text or ""):gmatch("\n") do n = n + 1 end
+  return n * 14 + (n - 1) * 4
+end
 function methods:SetText(t) self._text = t end
 function methods:GetText() return self._text end
 function methods:Show() local was = self._shown; self._shown = true; if not was and self._scripts.OnShow then self._scripts.OnShow(self) end end
@@ -278,7 +284,7 @@ WorldMapFrame.RemoveAllPinsByTemplate = function() PINS = {} end
 WorldMapFrame.AcquirePin = function(self, template, info)
   local pin = CreateFrame("Frame")
   for k, v in pairs(GatherScoutMapPinMixin) do pin[k] = v end
-  pin.Texture = pin:CreateTexture(); pin.Border = pin:CreateTexture(); pin.Shadow = pin:CreateTexture()
+  pin.Texture = pin:CreateTexture(); pin.Edge = pin:CreateTexture(); pin.Shadow = pin:CreateTexture()
   pin:OnLoad(); pin:OnAcquired(info)
   PINS[#PINS + 1] = pin
   return pin

@@ -2,6 +2,7 @@
 -- drop (or can be skinned for) items that are in demand, plus lines in the mob tooltip.
 -- Everything is off inside instances (WoW Forever restricts unit data there).
 local _, ns = ...
+local L = ns.L
 
 ---------------------------------------------------------------- shared helpers
 local function shouldShow(list)
@@ -16,13 +17,16 @@ end
 
 -- Chance colored by source: white = wowhead (Questie), light blue = classic data (CMaNGOS), green = your kills
 ns.CHANCE_COLOR = { db = "|cffffffff", classic = "|cff8cc8ff", learned = "|cff66ff66" }
-function ns.ChanceText(pct, src)
-  if not pct then return "" end
+ns.UNKNOWN_CHANCE = "|cff909090??|r" -- a drop whose chance nobody knows yet
+
+-- Chance text; `unknown` = show "??" instead of nothing when the chance is not known
+function ns.ChanceText(pct, src, unknown)
+  if not pct then return unknown == true and ns.UNKNOWN_CHANCE or "" end
   local txt
   if pct >= 10 then txt = string.format("%d%%", math.floor(pct + 0.5))
-  elseif pct >= 1 then txt = string.format("%.1f%%", pct)
-  elseif pct >= 0.1 then txt = string.format("%.2f%%", pct)
-  else txt = string.format("%.3f%%", pct) end
+  elseif pct >= 1 then txt = ns.Dec("%.1f%%", pct)
+  elseif pct >= 0.1 then txt = ns.Dec("%.2f%%", pct)
+  else txt = ns.Dec("%.3f%%", pct) end
   return (ns.CHANCE_COLOR[src] or "|cffffffff") .. txt .. "|r"
 end
 
@@ -177,16 +181,28 @@ function ns.AddUnitLines(tt, unit, force)
   if not force and not (S.enabled and S.tooltips) then return end
   local ok, list, _, _, others = pcall(ns.UnitMaterials, unit)
   if not ok or not list then return end
+  -- the tooltip lists the most likely drops first ("??" last; what your skill can't skin yet at the bottom);
+  -- the nameplate / target icon keeps the most valuable one (UnitMaterials' own order)
+  local sorted = {}
+  for i, e in ipairs(list) do sorted[i] = e end
+  table.sort(sorted, function(a, b)
+    if (a.low and 1 or 0) ~= (b.low and 1 or 0) then return not a.low end
+    local ca, cb = a.chance or -1, b.chance or -1
+    if ca ~= cb then return ca > cb end
+    local ah, bh = a.hot or 1000, b.hot or 1000
+    if ah ~= bh then return ah < bh end
+    return (ns.Price(a.id) or 0) > (ns.Price(b.id) or 0)
+  end)
   local rows = {}
-  for _, e in ipairs(list) do
+  for _, e in ipairs(sorted) do
     if #rows >= 6 then break end
     local row = ns.rowById and ns.rowById[e.id]
-    local name = ns.ItemName(e.id) or ("item " .. e.id)
+    local name = ns.ItemName(e.id) or string.format(L["item %d"], e.id)
     local extra = ""
     if e.low then
-      extra = string.format("|cffff6060нужно %d навыка|r", e.req or 0)
-    elseif e.chance then
-      extra = ns.ChanceText(e.chance, e.chanceSrc)
+      extra = "|cffff6060" .. string.format(L["needs %d skill"], e.req or 0) .. "|r"
+    else
+      extra = ns.ChanceText(e.chance, e.chanceSrc, true)
     end
     local price = ns.Price(e.id)
     local right = (e.hot and HOT_STAR or "") .. (price and ns.Money(price) or "")
@@ -196,12 +212,13 @@ function ns.AddUnitLines(tt, unit, force)
   end
   addAligned(tt, rows)
   local shown = #rows
-  if #list > shown then tt:AddLine(string.format("|cff909090…и ещё %d|r", #list - shown)) end
+  if #list > shown then tt:AddLine("|cff909090" .. string.format(L["…and %d more"], #list - shown) .. "|r") end
   if others and #others > 0 then
     local names = {}
-    for i = 1, math.min(6, #others) do names[#names + 1] = ns.ItemName(others[i]) or ("item " .. others[i]) end
+    for i = 1, math.min(6, #others) do names[#names + 1] = ns.ItemName(others[i]) or string.format(L["item %d"], others[i]) end
     if #others > 6 then names[#names + 1] = "…" end
-    tt:AddLine("|cff909090Ещё падает (не видели на аукционе): " .. table.concat(names, ", ") .. "|r", 1, 1, 1, true)
+    tt:AddLine("|cff909090" .. string.format(L["Also drops (not seen on the AH): %s"], table.concat(names, ", ")) .. "|r",
+      1, 1, 1, true)
   end
 end
 
@@ -228,15 +245,29 @@ local nodeByName, itemsByNode
 local function nodeIndex()
   if nodeByName then return end
   nodeByName, itemsByNode = {}, {}
-  for en, info in pairs(ns.GEN.nodeInfo or {}) do
-    nodeByName[en] = en
-    for _, ru in ipairs(info.ru or {}) do nodeByName[ru] = en end
-  end
+  for en in pairs(ns.GEN.nodeInfo or {}) do nodeByName[en] = en end
+  -- node names in the client's language (Data/Names/<locale>.lua, generated from QuestieDB by object ID)
+  for name, en in pairs(ns.GEN.nodeL or {}) do nodeByName[name] = en end
   for itemID, ni in pairs(ns.GEN.nodeItems) do
     for _, n in ipairs(ni.nodes or {}) do
       local t = itemsByNode[n]
       if not t then t = {}; itemsByNode[n] = t end
       t[#t + 1] = itemID
+    end
+  end
+  -- fishing schools: what they give (Data/Fishing.lua)
+  for itemID, f in pairs(ns.GEN.fish or {}) do
+    local seen = {}
+    for _, per in pairs(f.p or {}) do
+      for pool in pairs(per) do
+        if not seen[pool] then
+          seen[pool] = true
+          nodeByName[pool] = pool
+          local t = itemsByNode[pool]
+          if not t then t = {}; itemsByNode[pool] = t end
+          t[#t + 1] = itemID
+        end
+      end
     end
   end
 end
@@ -262,7 +293,8 @@ function ns.AddNodeLines(tt, name)
   local ctx = ns.ctx or ns.Context()
   local have = profKey and ctx.profs[profKey]
   if info and info.skill and info.skill > 1 and (not have or have < info.skill) then
-    tt:AddLine(string.format("Нужно %d навыка%s", info.skill, have and (" (у тебя " .. have .. ")") or ""), 1, 0.4, 0.4)
+    tt:AddLine(have and string.format(L["Needs %d skill (you have %d)"], info.skill, have)
+      or string.format(L["Needs %d skill"], info.skill), 1, 0.4, 0.4)
   end
   local rows = {}
   for i = 1, math.min(6, #list) do
@@ -274,8 +306,8 @@ function ns.AddNodeLines(tt, name)
     if row and row.dem then right = right .. ns.DemandTip(row.dem) end
     rows[#rows + 1] = {
       name = string.format("|T%d:0|t %s%s|r", ns.ItemIcon(id), hot and "|cff7fd4ff" or "|cffd8d8d8",
-        ns.ItemName(id) or ("item " .. id)),
-      extra = (ns.MAT[id].r <= 0.15 and i > 1) and "|cff909090иногда|r" or "",
+        ns.ItemName(id) or string.format(L["item %d"], id)),
+      extra = (ns.MAT[id].r <= 0.15 and i > 1) and ("|cff909090" .. L["sometimes"] .. "|r") or "",
       right = right,
     }
   end

@@ -3,7 +3,8 @@
 > **English:** an Auction House helper for **World of Warcraft: Forever**. It scans the AH, works out which
 > gathering materials and mob drops are in demand, and shows what you can farm profitably *and safely* at
 > your level and skills: a ranked list, mob markers on nameplates (like Questie), tooltips with drop chances,
-> 21-day price charts and world map markers. Works without Auctionator. The interface is in Russian for now.
+> 21-day price charts and world map markers. Works without Auctionator. Interface in English, Russian,
+> German, French, Spanish, Portuguese, Korean and Chinese (simplified and traditional).
 
 Аддон для **World of Warcraft: Forever** (клиент 1.60, `## Interface: 16001`).
 
@@ -36,8 +37,10 @@
   - **Сложность для тебя**: насколько мобы в зоне выше твоего уровня (зона, где ты всех убиваешь, —
     «легко»; зона твоего уровня — «средне»; выше — «трудно/опасно»), элитные мобы, чужая фракция,
     нехватка навыка, плотность точек. Зоны сильно выше уровня скрываются (настраивается).
-- **Где добывать**: зоны с точками трав/руды, конкретные мобы (с русскими именами и уровнями),
-  «звери N–M ур.» для кожи и «гуманоиды N–M ур.» для ткани.
+- **Где добывать**: зоны с точками трав/руды, конкретные мобы (с именами на языке клиента и уровнями),
+  места рыбалки и косяки рыбы, «звери N–M ур.» для кожи и «гуманоиды N–M ур.» для ткани.
+- **Язык**: интерфейс, имена мобов и точек — на языке клиента (английский, русский, немецкий,
+  французский, испанский, португальский, корейский, китайский упрощённый и традиционный).
 - **Пометки на мобах**: иконка у неймплейта (справа, за значком уровня; можно сверху или слева) и у
   портрета цели, строки в подсказке при наведении: что падает, шанс, цена, спрос, хватает ли навыка
   снятия шкур; отдельной строкой — что ещё падает, но не встречалось на аукционе. Помечается топ
@@ -106,19 +109,29 @@ GatherScout работает сам по себе: сам сканирует, с
   (`@project-version@`) подставляет упаковщик, список изменений берётся из `CHANGELOG.md`.
   Загрузка на CurseForge и Wago включается секретами `CF_API_KEY` и `WAGO_API_TOKEN` и строками
   `## X-Curse-Project-ID` / `## X-Wago-ID` в TOC.
-- Тесты гоняют аддон в эмуляции WoW API (Lua 5.4 через `lupa`):
-  `python -I tests/run_test.py . tests/harness.lua` (и `run_test2.py` … `run_test6.py` так же).
+- Тесты гоняют аддон в эмуляции WoW API (через `lupa`):
+  - `python -I tests/run_test.py . tests/harness.lua` (и `run_test2.py` … `run_test6.py` так же);
+  - `python -I tests/run_locale.py . ruRU` — весь аддон под заданной локалью клиента (`enUS`, `ruRU`,
+    `deDE`, `esES`, `esMX`, `frFR`, `ptBR`, `koKR`, `zhCN`, `zhTW`), печатает, что показали бы окно,
+    карточка, карта и подсказки.
 
 ## Данные и лицензия
 
-Зоны, уровни зон, точки трав и руды (с координатами), мобы, их русские имена, таблицы дропа и
-шансы сгенерированы из баз [QuestieDB](https://github.com/Questie/Questie) (GPL-3.0) и
+Зоны, уровни зон, точки трав и руды (с координатами), мобы, их имена на всех языках клиента, таблицы
+дропа, шансы и рыбалка сгенерированы из баз [QuestieDB](https://github.com/Questie/Questie) (GPL-3.0) и
 [CMaNGOS classic-db](https://github.com/cmangos/classic-db) (GPL-3.0; игровые данные принадлежат
 Blizzard, см. их COPYRIGHT.md) скриптами из папки `tools/`.
 Поэтому GatherScout распространяется под **GPL-3.0-or-later** (см. `LICENSE`).
 
-Перегенерировать данные после обновления Questie:
+Перегенерировать данные после обновления Questie (по порядку: рыбалка и имена читают `Generated.lua`;
+`Q` — папка QuestieDB, `tmp` — любая временная папка):
 
 ```
-python -I tools/gen.py "<путь>\_forever_\Interface\AddOns\QuestieDB" Data/Generated.lua ClassicDB_1_12_1_z2815.sql.gz
+python -I tools/gen.py "$Q" Data/Generated.lua ClassicDB_1_12_1_z2815.sql.gz
+python -I tools/qdb.py "$Q/QuestieDB_Forever.toc" tmp/qdb
+python -I tools/cm_fish.py ClassicDB_1_12_1_z2815.sql.gz tmp/cm_fish.json
+python -I tools/gen_fishing.py tmp/cm_fish.json "$Q" tmp/qdb/objects.json .
+python -I tools/gen_names.py "$Q" .
 ```
+
+`Data/Fixes.lua` правится вручную: поправки к сгенерированным данным (невозможные диапазоны уровней мобов).

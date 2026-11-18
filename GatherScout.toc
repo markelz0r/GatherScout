@@ -1,20 +1,57 @@
 ## Interface: 16001
-## Title: GatherScout
+## Title: GatherScout |cff7fd4ff(what to farm)|r
 ## Title-ruRU: GatherScout |cff7fd4ff(что фармить)|r
+## Title-deDE: GatherScout |cff7fd4ff(was farmen)|r
+## Title-esES: GatherScout |cff7fd4ff(qué farmear)|r
+## Title-esMX: GatherScout |cff7fd4ff(qué farmear)|r
+## Title-frFR: GatherScout |cff7fd4ff(quoi farmer)|r
+## Title-ptBR: GatherScout |cff7fd4ff(o que farmar)|r
+## Title-koKR: GatherScout |cff7fd4ff(무엇을 파밍할까)|r
+## Title-zhCN: GatherScout |cff7fd4ff(刷什么)|r
+## Title-zhTW: GatherScout |cff7fd4ff(刷什麼)|r
 ## Notes: Scans the Auction House for gathering materials in demand and shows what you can farm safely at your level. Marks mobs that drop them.
 ## Notes-ruRU: Сканирует аукцион, считает спрос на сырьё собирательных профессий и подсказывает, что выгодно и безопасно добывать на твоём уровне. Помечает мобов, с которых падает нужное сырьё.
+## Notes-deDE: Durchsucht das Auktionshaus nach gefragten Sammelmaterialien und zeigt, was du auf deiner Stufe gefahrlos farmen kannst. Markiert Gegner, die sie fallen lassen.
+## Notes-esES: Escanea la casa de subastas en busca de materiales de recolección con demanda y muestra qué puedes farmear sin riesgo a tu nivel. Marca a los enemigos que los sueltan.
+## Notes-esMX: Escanea la casa de subastas en busca de materiales de recolección con demanda y muestra qué puedes farmear sin riesgo a tu nivel. Marca a los enemigos que los sueltan.
+## Notes-frFR: Analyse l'hôtel des ventes à la recherche des matériaux de récolte demandés et indique ce que tu peux farmer sans risque à ton niveau. Marque les monstres qui les lâchent.
+## Notes-ptBR: Varre a casa de leilões atrás de materiais de coleta em demanda e mostra o que você pode farmar com segurança no seu nível. Marca os inimigos que os derrubam.
+## Notes-koKR: 경매장에서 수요가 있는 채집 재료를 검색하고, 내 레벨에서 안전하게 파밍할 수 있는 것을 보여 줍니다. 재료를 떨어뜨리는 몹을 표시합니다.
+## Notes-zhCN: 扫描拍卖行中有需求的采集材料，显示在你的等级可以安全刷的东西，并标记掉落这些材料的怪物。
+## Notes-zhTW: 掃描拍賣場中有需求的採集材料，顯示在你的等級可以安全刷的東西，並標記掉落這些材料的怪物。
 ## Version: @project-version@
 ## Author: markelz0r
 ## SavedVariables: GatherScoutDB
 ## X-License: GPL-3.0-or-later
-## X-Credits: zone/node/mob/loot data generated from QuestieDB (GPL-3.0) and CMaNGOS classic-db (GPL-3.0)
+## X-Credits: zone/node/mob/loot data and localized mob/node names generated from QuestieDB (GPL-3.0) and CMaNGOS classic-db (GPL-3.0)
 ## X-Curse-Project-ID: 1814294
 ## X-Wago-ID: qKQg9oNx
 ## X-Website: https://github.com/markelz0r/GatherScout
 ## IconTexture: Interface\Icons\INV_Misc_Herb_07
 
+Locales\Locales.lua
+Locales\ruRU.lua
+Locales\deDE.lua
+Locales\esES.lua
+Locales\esMX.lua
+Locales\frFR.lua
+Locales\ptBR.lua
+Locales\koKR.lua
+Locales\zhCN.lua
+Locales\zhTW.lua
 Core.lua
 Data\Generated.lua
+Data\Fixes.lua
+Data\Fishing.lua
+Data\Names\ruRU.lua
+Data\Names\deDE.lua
+Data\Names\esES.lua
+Data\Names\esMX.lua
+Data\Names\frFR.lua
+Data\Names\ptBR.lua
+Data\Names\koKR.lua
+Data\Names\zhCN.lua
+Data\Names\zhTW.lua
 Data\Materials.lua
 Analysis.lua
 Scanner.lua

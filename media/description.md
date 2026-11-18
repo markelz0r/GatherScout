@@ -2,7 +2,7 @@
 
 GatherScout is an Auction House helper for **World of Warcraft: Forever**. It scans the Auction House, works out which gathering materials and mob drops are in demand, and shows what **you** can farm profitably and safely at your level and with your skills.
 
-*The interface is in Russian for now (ruRU).*
+*Interface, mob and node names in English, Russian, German, French, Spanish, Portuguese, Korean and Chinese (simplified and traditional).*
 
 ### Features
 

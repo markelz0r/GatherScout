@@ -1,3 +1,50 @@
+# 1.3.0
+
+- Interface in English, Russian, German, French, Spanish (EU and Latin America), Portuguese, Korean and
+  Chinese (simplified and traditional); mob and herb/ore node names in the client's language.
+  Search ignores case for accented Latin letters and Cyrillic too.
+- Fishing: what you catch where (zones, coasts and lakes, fishing schools), the catch rate for your fishing
+  skill including pole and lure bonuses, schools on the map.
+- Item card: "Where to farm" is one row per place in aligned columns (difficulty, mob, levels, chance,
+  zone). A click opens the place's other mobs; the tooltip has the full mob list and all warnings; places
+  that do not fit sit behind "N more places".
+- World map: spawns close together merge into one marker (with a count) and split again when you zoom in;
+  markers are framed in the difficulty color for you and drawn below quest markers. Continent maps show
+  one marker per zone; Shift+click on the map button switches best place / best 3 / all. The card's map
+  button shows just that item.
+- Mobs without a level in the data get the zone's levels (marked "~") until you see one; the level you
+  see is remembered. Impossible level ranges are fixed.
+- Neutral (yellow) mobs are back in the data: boars, wolves, plainstriders, kodos, zhevras, crawlers,
+  owls and more were missing, e.g. Chunk of Boar Meat showed only Corrupted Mottled Boars.
+- World drops (scrolls, BoE greens) are no longer tied to the few mobs Questie happens to list.
+- Leather and cloth list the mobs that really drop them; chances below 1% are not offered as farm spots.
+  An unknown chance shows "??".
+- Auction House: a repeated item list from the server (e.g. after Auctionator's scan) no longer resets
+  the scan status or the 15-minute timer; the AH buttons fit their labels in every language.
+
+---
+
+- Интерфейс на английском, русском, немецком, французском, испанском (Европа и Латинская Америка),
+  португальском, корейском и китайском (упрощённом и традиционном); имена мобов, трав и жил — на языке
+  клиента. Поиск не различает регистр и для букв с диакритикой, и для кириллицы.
+- Рыбалка: что где ловится (зоны, побережья и озёра, косяки рыбы), доля улова при твоём навыке с учётом
+  удочки и наживки, косяки на карте.
+- Карточка предмета: «Где добывать» — по строке на место, колонками (сложность, моб, уровни, шанс, зона).
+  Клик раскрывает остальных мобов места; в подсказке весь список мобов и все предупреждения; что не
+  влезло — за строкой «ещё N мест».
+- Карта мира: близкие точки сливаются в одну метку (с числом) и расходятся при приближении; рамка метки —
+  цвет сложности для тебя, метки под квестовыми. На карте континента — одна метка на зону; Shift+клик по
+  кнопке на карте: лучшее место / лучшие 3 / все. Кнопка карты в карточке показывает только этот предмет.
+- Мобы без уровня в данных получают уровни зоны (с пометкой «~»), пока ты их не увидишь; увиденный уровень
+  запоминается. Невозможные диапазоны уровней исправлены.
+- Вернулись нейтральные (жёлтые) мобы: не хватало кабанов, волков, равнинных бегунов, кодо, зебр, крабов,
+  сов и других — например, у «Куска кабанины» был только Оскверненный крапчатый вепрь.
+- Мировой дроп (свитки, зелёные BoE-вещи) больше не привязан к паре мобов, которых случайно упоминает Questie.
+- Для кожи и ткани — мобы, с которых они правда падают (снимаются); шанс меньше 1% не предлагается как
+  место фарма. Неизвестный шанс показывается как «??».
+- Аукцион: повторный список лотов от сервера (например, после скана Auctionator) больше не сбрасывает
+  статус скана и 15-минутный таймер; кнопки у аукциона вмещают надпись на любом языке.
+
 # 1.2.0
 
 First public release.

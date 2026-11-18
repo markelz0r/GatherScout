@@ -1,5 +1,6 @@
 -- GatherScout core: saved variables, events, player context, loot learning, slash commands.
 local ADDON, ns = ...
+local L = ns.L
 _G.GatherScout = ns
 
 ns.VERSION = "1.0.0"
@@ -50,6 +51,13 @@ function ns.MapName(mapID)
   return z and z[3] or ("#" .. tostring(mapID))
 end
 
+-- Sub-zone name (area ID) in the client's language, nil when the client cannot tell
+function ns.AreaName(areaID)
+  if not (areaID and C_Map and C_Map.GetAreaInfo) then return nil end
+  local ok, name = pcall(C_Map.GetAreaInfo, areaID)
+  return ok and type(name) == "string" and name ~= "" and name or nil
+end
+
 -- Short money string with coin icons: 1[g] 25[s] (copper only below 1 gold, silver hidden from 100 gold)
 local COIN = {
   g = "|TInterface\\MoneyFrame\\UI-GoldIcon:%d:%d:2:0|t",
@@ -64,17 +72,24 @@ function ns.Money(copper, size)
   local s = math.floor((copper % 10000) / 100)
   local c = copper % 100
   local parts = {}
-  if g > 0 then parts[#parts + 1] = g .. COIN.g:format(size, size) end
+  if g > 0 then parts[#parts + 1] = ns.Num(g) .. COIN.g:format(size, size) end
   if s > 0 and g < 100 then parts[#parts + 1] = s .. COIN.s:format(size, size) end
   if c > 0 and g == 0 then parts[#parts + 1] = c .. COIN.c:format(size, size) end
   if #parts == 0 then return "0" .. COIN.c:format(size, size) end
   return table.concat(parts, " ")
 end
 
--- Lower-case for searching, including Cyrillic (Lua's string.lower only handles ASCII)
+-- Lower-case for searching (Lua's string.lower only handles ASCII): ASCII, Latin-1 accented capitals
+-- (Ä É Ñ Ç … for de/fr/es/pt) and Cyrillic. CJK and Hangul have no case.
 function ns.Lower(s)
   -- ASCII by hand: string.lower may touch UTF-8 bytes under some C locales
   s = (s or ""):gsub("[A-Z]", function(c) return string.char(c:byte() + 32) end)
+  -- U+00C0..U+00DE (except U+00D7 ×) -> +0x20
+  s = s:gsub("\195([\128-\158])", function(c)
+    local b = c:byte()
+    if b == 151 then return "\195" .. c end
+    return "\195" .. string.char(b + 32)
+  end)
   s = s:gsub("\208([\144-\175])", function(c)
     local b = c:byte()
     if b < 160 then return "\208" .. string.char(b + 32) end
@@ -107,11 +122,12 @@ local DEFAULTS = {
     minQty = 100,         -- hide items with fewer units than this on the AH (illiquid); 0 = show all
     markAll = false,      -- mark every mob that drops any tracked material, regardless of demand
     cats = { herb = true, ore = true, gem = true, skin = true, cloth = true, drop = true, elem = false,
-             dgoods = true, drecipe = true, dgear = false },
+             fish = true, dgoods = true, drecipe = true, dgear = false },
     minimap = { hide = false, angle = 205 },
     mapPinned = true,     -- show pinned (star) items on the world map
     mapShow = true,       -- master switch for everything GatherScout draws on the world map
     mapNodes = false,     -- herb / ore spawn points on zone maps (mobs and zone markers are always shown)
+    mapSources = 3,       -- continent map: best N places per item (0 = all); Shift+click on the map button
     tipDemand = "icon",   -- demand in mob/node tooltips: icon | text | off
     npPos = "right",      -- nameplate icon: right (past the level badge) | top | left (Questie uses left)
     npX = 0, npY = 0, npSize = 18,
@@ -185,12 +201,20 @@ function ns.Invalidate()
 end
 
 ---------------------------------------------------------------- player context
-local SKILL_IDS = { [182] = "herb", [186] = "mine", [393] = "skin" }
+local SKILL_IDS = { [182] = "herb", [186] = "mine", [393] = "skin", [356] = "fish" }
+-- names only matter for very old clients without skill IDs; English plus the client's language
 local SKILL_NAMES = {
-  ["Herbalism"] = "herb", ["Травничество"] = "herb",
-  ["Mining"] = "mine", ["Горное дело"] = "mine",
-  ["Skinning"] = "skin", ["Снятие шкур"] = "skin",
+  ["Herbalism"] = "herb", [L["Herbalism"]] = "herb",
+  ["Mining"] = "mine", [L["Mining"]] = "mine",
+  ["Skinning"] = "skin", [L["Skinning"]] = "skin",
+  ["Fishing"] = "fish", [L["Fishing"]] = "fish",
 }
+-- Fishing counts with its bonus (fishing pole, lure): the catch chance depends on the total
+local function skillValue(key, rank, modifier)
+  rank = rank or 0
+  if key == "fish" and type(modifier) == "number" and modifier > 0 then return rank + modifier end
+  return rank
+end
 
 function ns.ReadProfessions()
   local res = {}
@@ -206,20 +230,21 @@ function ns.ReadProfessions()
       local info = C_SkillInfo.GetSkillLineInfo(i)
       if info and not info.isHeader then
         local key = SKILL_IDS[info.skillID] or SKILL_NAMES[info.name or ""]
-        if key then res[key] = info.rank or 0 end
+        if key then res[key] = skillValue(key, info.rank, info.skillModifier or info.modifier) end
       end
     end
   elseif GetNumSkillLines then
     for i = 1, GetNumSkillLines() do
-      local name, isHeader, _, rank = GetSkillLineInfo(i)
-      if name and not isHeader and SKILL_NAMES[name] then res[SKILL_NAMES[name]] = rank or 0 end
+      local name, isHeader, _, rank, _, modifier = GetSkillLineInfo(i)
+      local key = name and not isHeader and SKILL_NAMES[name]
+      if key then res[key] = skillValue(key, rank, modifier) end
     end
   end
   if not next(res) and GetProfessions then
-    local p1, p2 = GetProfessions()
-    for _, idx in ipairs({ p1, p2 }) do
-      local _, _, rank, _, _, _, skillLine = GetProfessionInfo(idx)
-      if SKILL_IDS[skillLine] then res[SKILL_IDS[skillLine]] = rank or 0 end
+    local p1, p2, _, fishing = GetProfessions()
+    for _, idx in ipairs({ p1, p2, fishing }) do
+      local _, _, rank, _, _, _, skillLine, modifier = GetProfessionInfo(idx)
+      if SKILL_IDS[skillLine] then res[SKILL_IDS[skillLine]] = skillValue(SKILL_IDS[skillLine], rank, modifier) end
     end
   end
   ns.profs = res
@@ -353,32 +378,32 @@ SlashCmdList.GATHERSCOUT = function(msg)
   local S = ns.S
   if msg == "" then
     if ns.UI_Toggle then ns.UI_Toggle() end
-  elseif msg == "scan" or msg == "скан" then
+  elseif msg == "scan" or msg == L["cmd:scan"] then
     if ns.Scan_Full then ns.Scan_Full(true) end
-  elseif msg == "quick" or msg == "быстрый" then
+  elseif msg == "quick" or msg == L["cmd:quick"] then
     if ns.Scan_Start then ns.Scan_Start(true) end
   elseif msg == "on" or msg == "off" or msg == "toggle" then
     if msg == "toggle" then S.enabled = not S.enabled else S.enabled = (msg == "on") end
-    ns.Print("пометки на мобах %s", S.enabled and "|cff00ff00включены|r" or "|cffff4040выключены|r")
+    ns.Print(L["mob markers %s"], S.enabled and ("|cff00ff00" .. L["enabled"] .. "|r") or ("|cffff4040" .. L["disabled"] .. "|r"))
     ns.Invalidate()
   elseif msg == "minimap" then
     S.minimap.hide = not S.minimap.hide
     if ns.Minimap_Update then ns.Minimap_Update() end
-  elseif msg:match("^demand") or msg:match("^спрос") then
+  elseif msg:match("^demand") or msg:find(L["cmd:demand"], 1, true) == 1 then
     local mode = msg:match("(%a+)$")
     local next = { icon = "text", text = "off", off = "icon" }
     if mode == "icon" or mode == "text" or mode == "off" then S.tipDemand = mode
     else S.tipDemand = next[S.tipDemand] or "icon" end
-    ns.Print("спрос в подсказках: %s", ({ icon = "иконка", text = "текст", off = "не показывать" })[S.tipDemand])
+    ns.Print(L["demand in tooltips: %s"], ({ icon = L["icon"], text = L["text"], off = L["hidden"] })[S.tipDemand])
     if ns.UI_Refresh then ns.UI_Refresh() end
-  elseif msg == "map" or msg == "карта" then
+  elseif msg == "map" or msg == L["cmd:map"] then
     S.mapShow = not S.mapShow
-    ns.Print("на карте: %s", S.mapShow and "|cff00ff00вкл|r" or "|cffff4040выкл|r")
+    ns.Print(L["on the map: %s"], ns.OnOff(S.mapShow))
     if ns.Map_UpdateButton then ns.Map_UpdateButton() end
     if ns.Map_Refresh then ns.Map_Refresh() end
-  elseif msg == "nodes" or msg == "точки" then
+  elseif msg == "nodes" or msg == L["cmd:nodes"] then
     S.mapNodes = not S.mapNodes
-    ns.Print("точки трав и руды на карте: %s", S.mapNodes and "|cff00ff00вкл|r" or "|cffff4040выкл|r")
+    ns.Print(L["herb and ore nodes on the map: %s"], ns.OnOff(S.mapNodes))
     if ns.Map_Refresh then ns.Map_Refresh() end
   elseif msg:match("^icon") then
     -- /gs icon <dx> <dy> [size] : fine-tune the nameplate icon; /gs icon reset
@@ -389,24 +414,24 @@ SlashCmdList.GATHERSCOUT = function(msg)
       S.npX, S.npY = tonumber(dx), tonumber(dy)
       if size ~= "" then S.npSize = math.max(8, math.min(40, tonumber(size))) end
     end
-    ns.Print("иконка на неймплейте: сдвиг %d, %d, размер %d (|cffffff00/gs icon <x> <y> [размер]|r, "
-      .. "|cffffff00/gs icon reset|r)", S.npX, S.npY, S.npSize)
+    ns.Print(L["nameplate icon: offset %d, %d, size %d (|cffffff00/gs icon <x> <y> [size]|r, |cffffff00/gs icon reset|r)"],
+      S.npX, S.npY, S.npSize)
     if ns.Mobs_RefreshAll then ns.Mobs_RefreshAll() end
   elseif msg == "reset" then
     ns.db.market[ns.RealmKey()] = nil
-    ns.Print("данные аукциона для %s очищены.", ns.RealmKey())
+    ns.Print(L["auction data for %s cleared."], ns.RealmKey())
     ns.Invalidate()
   elseif msg == "forget" then
     ns.db.learned = { npc = {}, zone = {}, kills = {} }
-    ns.Print("выученные дропы и зоны очищены.")
+    ns.Print("%s", L["learned drops and zones cleared."])
     ns.Invalidate()
   elseif msg == "debug" then
     ns.debug = not ns.debug
     ns.Print("debug %s", ns.debug and "on" or "off")
   else
-    ns.Print("команды: |cffffff00/gs|r — окно, |cffffff00/gs scan|r — полный скан (на аукционе), "
-      .. "|cffffff00/gs quick|r — быстрый скан сырья, "
-      .. "|cffffff00/gs on|r / |cffffff00/gs off|r — пометки на мобах, |cffffff00/gs minimap|r — кнопка у миникарты, "
-      .. "|cffffff00/gs reset|r — очистить цены, |cffffff00/gs forget|r — забыть выученные дропы")
+    ns.Print("%s", L["commands: |cffffff00/gs|r — window, |cffffff00/gs scan|r — full scan (at the auction house), "
+      .. "|cffffff00/gs quick|r — quick scan of materials, |cffffff00/gs on|r / |cffffff00/gs off|r — mob markers, "
+      .. "|cffffff00/gs minimap|r — minimap button, |cffffff00/gs reset|r — clear prices, "
+      .. "|cffffff00/gs forget|r — forget learned drops"])
   end
 end

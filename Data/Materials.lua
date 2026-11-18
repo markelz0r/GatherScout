@@ -5,26 +5,31 @@
 --   ct    = creature type for rule-based sources ("beast" | "humanoid")
 --   zones/skill/guess = hand-placed sources for Forever items the database has no spawns for yet
 local _, ns = ...
+local L = ns.L
 
 -- uph = units (or, for d* categories, kills) per hour at difficulty 1.0
 ns.CATS = {
-  herb    = { label = "Травы",      prof = "herb", uph = 60, order = 1 },
-  ore     = { label = "Руда",       prof = "mine", uph = 40, order = 2 },
-  gem     = { label = "Камни",      prof = "mine", uph = 30, order = 3, tip = "Камни и самоцветы из жил" },
-  skin    = { label = "Кожа",       prof = "skin", uph = 55, order = 4, tip = "Кожа, шкуры и чешуя (снятие шкур)" },
-  cloth   = { label = "Ткань",      prof = nil,    uph = 40, order = 5 },
-  drop    = { label = "Чешуя",      prof = nil,    uph = 30, order = 6, tip = "Чешуя мурлоков" },
-  elem    = { label = "Стихии",     prof = nil,    uph = 12, order = 7, tip = "Стихии и эссенции с элементалей и нежити" },
-  dgoods  = { label = "Дроп",       prof = nil,    uph = 40, order = 8, drop = true,
-              tip = "Всё остальное, что падает с мобов и продаётся: мясо, клыки, шёлк, мешочки, перья, зелья…" },
-  drecipe = { label = "Рецепты",    prof = nil,    uph = 40, order = 9, drop = true,
-              tip = "Рецепты, выкройки и чертежи с мобов" },
-  dgear   = { label = "Снаряжение", prof = nil,    uph = 40, order = 10, drop = true,
-              tip = "Оружие и броня, падающие с мобов (BoE)" },
+  herb    = { label = L["Herbs"],     prof = "herb", uph = 60, order = 1 },
+  ore     = { label = L["Ore"],       prof = "mine", uph = 40, order = 2 },
+  gem     = { label = L["Gems"],      prof = "mine", uph = 30, order = 3, tip = L["Stones and gems from veins"] },
+  skin    = { label = L["Leather"],   prof = "skin", uph = 55, order = 4, tip = L["Leather, hides and scales (skinning)"] },
+  cloth   = { label = L["Cloth"],     prof = nil,    uph = 40, order = 5 },
+  drop    = { label = L["Scales"],    prof = nil,    uph = 30, order = 6, tip = L["Murloc scales"] },
+  elem    = { label = L["Elemental"], prof = nil,    uph = 12, order = 7,
+              tip = L["Elemental materials and essences from elementals and undead"] },
+  -- fishing skill is checked per place (Analysis.lua), mobs that drop fish need no profession; uph = casts
+  fish    = { label = L["Fish"],      prof = nil,    uph = 150, order = 8,
+              tip = L["Fish and other catches from fishing: open water and schools"] },
+  dgoods  = { label = L["Drops"],     prof = nil,    uph = 40, order = 9, drop = true,
+              tip = L["Everything else that drops from mobs and sells: meat, fangs, silk, pouches, feathers, potions…"] },
+  drecipe = { label = L["Recipes"],   prof = nil,    uph = 40, order = 10, drop = true,
+              tip = L["Recipes, patterns and schematics from mobs"] },
+  dgear   = { label = L["Gear"],      prof = nil,    uph = 40, order = 11, drop = true,
+              tip = L["Weapons and armor that drop from mobs (BoE)"] },
 }
 ns.DROP_CAT = { goods = "dgoods", recipe = "drecipe", gear = "dgear" }
 
-ns.PROF_LABEL = { herb = "Травничество", mine = "Горное дело", skin = "Снятие шкур" }
+ns.PROF_LABEL = { herb = L["Herbalism"], mine = L["Mining"], skin = L["Skinning"], fish = L["Fishing"] }
 
 local M = {}
 ns.MAT = M
@@ -107,6 +112,19 @@ set("cloth", 0.25, { 14256 })                                         -- Felclot
 set("drop", 0.3, { 5784, 5785 })               -- Slimy / Thick Murloc Scale
 set("elem", 0.3, { 7067, 7068, 7069, 7070, 12808 }) -- Elemental Earth/Fire/Air/Water, Essence of Undeath
 set("elem", 0.2, { 7076, 7078, 7080, 7082, 12803, 10286 }) -- Essences, Living Essence, Heart of the Wild
+
+---------------------------------------------------------------- Fishing (catches and places: Data/Fishing.lua)
+-- Items already tracked (Elemental Water…) keep their category and gain fishing places; fish that mobs drop
+-- too (murlocs and Slitherskin Mackerel) keep those mobs through `drop`.
+for id, f in pairs(ns.GEN.fish or {}) do
+  local e = M[id]
+  if not e then
+    e = { c = f.e and "elem" or "fish", r = 1 }
+    M[id] = e
+  end
+  e.fish = true
+  if not e.drop and ns.GEN.drops[id] and e.c == "fish" then e.drop = ns.GEN.drops[id] end
+end
 
 ---------------------------------------------------------------- Zone level ranges
 -- Classic zones use the well-known ranges; Forever zones fall back to levels measured from the database.

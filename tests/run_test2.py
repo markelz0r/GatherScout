@@ -96,7 +96,7 @@ search._scripts.OnTextChanged(search)
 print('  search applied without errors; frame count label:', strip(L.eval('GatherScoutFrame.count._text')))
 
 print('== world map')
-ns.Map_Toggle(12207, True)
+ns.Map_Show(12207)
 print('  map opened:', L.eval('WorldMapFrame._shown'), 'map', L.eval('CUR_MAP'), 'pins', len(L.eval('PINS')))
 pins = L.eval('PINS')
 if len(pins):

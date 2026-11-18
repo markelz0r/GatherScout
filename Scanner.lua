@@ -6,6 +6,7 @@
 -- Stores per item: market price (avg of the cheapest ~10% of units), min price, total quantity, and a history of
 -- snapshots that the demand model uses.
 local _, ns = ...
+local L = ns.L
 
 local scan = { active = false }
 ns.scan = scan
@@ -81,7 +82,7 @@ local function finishItem(cur, rows, total)
   end
   scan.done = scan.done + 1
   scan.cur = nil
-  setStatus(string.format("Скан %d/%d…", scan.done, scan.total))
+  setStatus(string.format(L["Quick scan %d/%d"], scan.done, scan.total))
 end
 
 local function store(results, partial)
@@ -135,11 +136,11 @@ local function finishScan(aborted)
   driver:Hide()
   local n = store(scan.results, aborted)
   if aborted then
-    setStatus(string.format("Скан прерван: сохранено %d", n))
-    ns.Print("скан прерван (аукцион закрыт), сохранено %d предметов.", n)
+    setStatus(string.format(L["Scan stopped: %d saved"], n))
+    ns.Print(L["scan stopped (auction house closed), %d items saved."], n)
   else
-    setStatus(string.format("Готово: %d, на аукционе %d", n, scan.found))
-    ns.Print("скан завершён за %d c: %d предметов, %d есть на аукционе. |cffffff00/gs|r — открыть список.",
+    setStatus(string.format(L["Done: %d, %d on the AH"], n, scan.found))
+    ns.Print(L["scan finished in %d s: %d items, %d on the auction house. |cffffff00/gs|r opens the list."],
       math.floor(GetTime() - scan.started + 0.5), n, scan.found)
   end
   ns.Invalidate()
@@ -229,15 +230,15 @@ end)
 
 function ns.Scan_Start(manual)
   if scan.active then
-    if manual then ns.Print("скан уже идёт…") end
+    if manual then ns.Print("%s", L["a scan is already running…"]) end
     return
   end
   if not ns.ahOpen then
-    if manual then ns.Print("открой аукцион — сканировать можно только у аукциониста.") end
+    if manual then ns.Print("%s", L["open the auction house: scanning works only at an auctioneer."]) end
     return
   end
   if not (C_AuctionHouse and C_AuctionHouse.SendSearchQuery and C_AuctionHouse.MakeItemKey) then
-    ns.Print("в этом клиенте нет современного API аукциона, скан недоступен.")
+    ns.Print("%s", L["this client has no modern auction house API, scanning is not available."])
     return
   end
   scan.queue = {}
@@ -248,7 +249,7 @@ function ns.Scan_Start(manual)
   scan.results = {}
   scan.started = GetTime()
   scan.active = true
-  setStatus(string.format("Скан 0/%d…", scan.total))
+  setStatus(string.format(L["Quick scan %d/%d"], 0, scan.total))
   driver:Show()
 end
 
@@ -279,20 +280,23 @@ local function fingerprint(AH, n)
   return acc
 end
 
+-- Returns true when a new snapshot is being processed.
 local function processReplicate(source)
-  if full.processing then return end
+  if full.processing then return false end
   local AH = C_AuctionHouse
   local n = AH.GetNumReplicateItems and AH.GetNumReplicateItems() or 0
-  if n <= 0 then return end
+  if n <= 0 then return false end
   local fp = fingerprint(AH, n)
   if fp == lastFingerprint then
+    -- The client fires the event again for a list it has already sent (e.g. when item data arrives later;
+    -- Auctionator unsubscribes after the first one for that reason). A repeat nobody asked for changes
+    -- nothing: the status keeps the result of the real scan. Only our own request gets an answer.
+    if source ~= "mine" then return false end
     full.active = false
-    setStatus("Полный скан: новых данных нет")
-    if source == "mine" then
-      ns.Print("сервер вернул тот же снимок аукциона, что уже учтён; делаю быстрый скан сырья.")
-      ns.Scan_Start(false)
-    end
-    return
+    setStatus(L["Full scan: no new data"])
+    ns.Print("%s", L["the server returned the auction snapshot that is already counted; running a quick scan of materials."])
+    ns.Scan_Start(false)
+    return false
   end
   lastFingerprint = fp
   full.processing, full.active = true, true
@@ -302,7 +306,7 @@ local function processReplicate(source)
     if not ns.ahOpen then
       ticker:Cancel()
       full.processing, full.active = false, false
-      setStatus("Полный скан прерван")
+      setStatus(L["Full scan stopped"])
       return
     end
     local stop = math.min(n, i + 2000)
@@ -315,7 +319,7 @@ local function processReplicate(source)
       end
       i = i + 1
     end
-    setStatus(string.format("Полный скан: %d%%", math.floor(i / n * 100)))
+    setStatus(string.format(L["Full scan: %d%%"], math.floor(i / n * 100)))
     if i < n then return end
     ticker:Cancel()
 
@@ -337,29 +341,34 @@ local function processReplicate(source)
     end
     local stored = store(results, false)
     full.processing, full.active = false, false
-    setStatus(string.format("Полный скан: %d лотов, наших %d", n, found))
-    ns.Print("полный скан%s: %d лотов за %d c, отслеживаемых предметов на аукционе: %d.",
-      source == "other" and " (данные другого аддона)" or "", n, math.floor(GetTime() - started + 0.5), found)
+    setStatus(string.format(L["Full scan: %s auctions, %d tracked"], ns.Num(n), found))
+    ns.Print(source == "other"
+      and L["full scan (data from another addon): %s auctions in %d s, tracked items on the auction house: %d."]
+      or L["full scan: %s auctions in %d s, tracked items on the auction house: %d."],
+      ns.Num(n), math.floor(GetTime() - started + 0.5), found)
     ns.Invalidate()
   end)
+  return true
 end
 
--- Fires for our own request and for full scans done by other addons (e.g. Auctionator)
+-- Fires for our own request, for full scans done by other addons (e.g. Auctionator) and again for a list
+-- already sent. The 15-minute timer moves only when a new snapshot arrives.
 ns.On("REPLICATE_ITEM_LIST_UPDATE", function()
   if not ns.ahOpen then return end
   local mine = full.requested
   full.requested = nil
-  ns.db.lastReplicate = math.max(ns.db.lastReplicate or 0, time())
-  processReplicate(mine and "mine" or "other")
+  if processReplicate(mine and "mine" or "other") then
+    ns.db.lastReplicate = math.max(ns.db.lastReplicate or 0, time())
+  end
 end)
 
 function ns.Scan_Full(manual)
   if scan.active or full.active then
-    if manual then ns.Print("скан уже идёт…") end
+    if manual then ns.Print("%s", L["a scan is already running…"]) end
     return
   end
   if not ns.ahOpen then
-    if manual then ns.Print("открой аукцион — сканировать можно только у аукциониста.") end
+    if manual then ns.Print("%s", L["open the auction house: scanning works only at an auctioneer."]) end
     return
   end
   if not (C_AuctionHouse and C_AuctionHouse.ReplicateItems) then return ns.Scan_Start(manual) end
@@ -370,12 +379,12 @@ function ns.Scan_Full(manual)
     return ns.Scan_Start(false)
   end
   full.active, full.requested = true, true
-  setStatus("Полный скан: ждём сервер…")
+  setStatus(L["Full scan: waiting for the server…"])
   C_AuctionHouse.ReplicateItems()
   C_Timer.After(15, function()
     if full.active and not full.processing then
       full.active, full.requested = false, nil
-      ns.Print("сервер не прислал полный скан (вероятно, его недавно делал другой аддон), делаю быстрый скан сырья.")
+      ns.Print("%s", L["the server sent no full scan (another addon probably did one recently); running a quick scan of materials."])
       ns.Scan_Start(false)
     end
   end)
@@ -384,13 +393,43 @@ end
 ---------------------------------------------------------------- AH open/close + button
 local button
 
+-- Grow a button to its label (never below minW), so no state of the text gets cut off
+local function fitWidth(b, minW)
+  local fs = b:GetFontString()
+  local w = fs and fs:GetStringWidth() or 0
+  b:SetWidth(math.max(minW, math.ceil(w) + 24))
+end
+
+-- The buttons sit on the top edge of the AH frame, often right under the top of the screen: a tooltip
+-- "above" gets pushed down by the screen clamp and covers both buttons. Open it above the button only
+-- when it fits there, otherwise below the button row. Call after GameTooltip:Show() (needs its height).
+local function anchorTip(owner)
+  local tt = GameTooltip
+  tt:ClearAllPoints()
+  local top = (owner:GetTop() or 0) * owner:GetEffectiveScale()
+  local need = (tt:GetHeight() + 8) * tt:GetEffectiveScale()
+  local screen = UIParent:GetTop() * UIParent:GetEffectiveScale()
+  if top + need <= screen then
+    tt:SetPoint("BOTTOMRIGHT", owner, "TOPRIGHT", 0, 6)
+  else
+    tt:SetPoint("TOPRIGHT", owner, "BOTTOMRIGHT", 0, -6)
+  end
+end
+
+local function countMaterials()
+  local n = 0
+  for _ in pairs(ns.MAT) do n = n + 1 end
+  return n
+end
+
 function ns.AHButton_Update()
   if not button then return end
   if scan.active or full.active then
-    button:SetText(scan.status or "Скан…")
+    button:SetText(scan.status or L["Scan…"])
   else
-    button:SetText("GatherScout: скан")
+    button:SetText(L["Scan auctions"])
   end
+  fitWidth(button, 170)
 end
 
 local function createButton()
@@ -412,18 +451,25 @@ local function createButton()
     end
   end)
   button:SetScript("OnEnter", function(self)
-    GameTooltip:SetOwner(self, "ANCHOR_TOP")
-    GameTooltip:AddLine("GatherScout")
-    GameTooltip:AddLine("ЛКМ — полный скан аукциона (раз в 15 мин, несколько секунд)", 1, 1, 1)
-    GameTooltip:AddLine("Shift+ЛКМ — быстрый скан только сырья (~1–2 мин)", 1, 1, 1)
-    GameTooltip:AddLine("ЛКМ во время быстрого скана — остановить", 1, 1, 1)
-    GameTooltip:AddLine("ПКМ — открыть список «что фармить»", 1, 1, 1)
+    local tt = GameTooltip
+    tt:SetOwner(self, "ANCHOR_NONE")
+    tt:AddLine("GatherScout")
+    tt:AddLine(L["Left-click: full scan of the whole auction house at once (the server allows it every 15 min)"], 1, 1, 1)
+    tt:AddLine(string.format(L["Shift+left-click: quick scan of %d gathering materials, one by one (~1–2 min)"],
+      countMaterials()), 1, 1, 1)
+    tt:AddLine(L["If the server refuses the full scan, a quick scan runs instead after 15 s"], 0.7, 0.7, 0.7)
+    tt:AddLine(L["Left-click during a quick scan: stop it"], 1, 1, 1)
+    tt:AddLine(L["Right-click: open the “what to farm” list"], 1, 1, 1)
     local m = ns.Market()
     if m.lastScan and m.lastScan > 0 then
-      GameTooltip:AddLine(string.format("Последний скан: %d мин назад", math.floor((time() - m.lastScan) / 60)),
-        0.7, 0.7, 0.7)
+      tt:AddLine(string.format(L["Last scan: %d min ago"], math.floor((time() - m.lastScan) / 60)), 0.7, 0.7, 0.7)
     end
-    GameTooltip:Show()
+    local wait = REPLICATE_COOLDOWN - (time() - (ns.db.lastReplicate or 0))
+    if wait > 0 then
+      tt:AddLine(string.format(L["Full scan by our timer: in ~%d min"], math.ceil(wait / 60)), 0.7, 0.7, 0.7)
+    end
+    tt:Show()
+    anchorTip(self)
   end)
   button:SetScript("OnLeave", GameTooltip_Hide)
 
@@ -431,13 +477,16 @@ local function createButton()
   local open = CreateFrame("Button", "GatherScoutAHOpenButton", parent, "UIPanelButtonTemplate")
   open:SetSize(100, 22)
   open:SetPoint("RIGHT", button, "LEFT", -4, 0)
-  open:SetText("Окно GS")
+  open:SetText("GatherScout")
+  fitWidth(open, 100)
   open:SetScript("OnClick", function() if ns.UI_Toggle then ns.UI_Toggle() end end)
   open:SetScript("OnEnter", function(self)
-    GameTooltip:SetOwner(self, "ANCHOR_TOP")
-    GameTooltip:AddLine("GatherScout")
-    GameTooltip:AddLine("Открыть / закрыть список «что фармить»", 1, 1, 1)
-    GameTooltip:Show()
+    local tt = GameTooltip
+    tt:SetOwner(self, "ANCHOR_NONE")
+    tt:AddLine("GatherScout")
+    tt:AddLine(L["Open / close the “what to farm” list"], 1, 1, 1)
+    tt:Show()
+    anchorTip(self)
   end)
   open:SetScript("OnLeave", GameTooltip_Hide)
   ns.AHButton_Update()

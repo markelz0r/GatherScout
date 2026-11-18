@@ -6,6 +6,7 @@
 -- is ~1.0, a zone at your level ~2.0, a few levels above ~3-5), elite mobs, enemy-faction zones,
 -- a profession skill that is a bit short, and sparse nodes.
 local _, ns = ...
+local L = ns.L
 
 local MAT, CATS = ns.MAT, ns.CATS
 local EMPTY = {}
@@ -13,9 +14,47 @@ local floor, max, min, log = math.floor, math.max, math.min, math.log
 
 local function clamp(x, a, b) if x < a then return a elseif x > b then return b end return x end
 
+---------------------------------------------------------------- mob levels
+-- Some new mobs have no level in the data (0). Until you see one in game they get the zone's level range,
+-- marked as a guess (shown with "~"); the level you see (mouseover, target) is remembered and used from then on.
+local function applyLevel(n, lo, hi, guess)
+  n[1], n[2], n.guess = lo, hi, guess or nil
+end
+
+function ns.FixMobLevels()
+  local seen = (ns.db and ns.db.learned and ns.db.learned.levels) or EMPTY
+  for id, n in pairs(ns.GEN.npcs) do
+    if n.unknown == nil then n.unknown = (n[1] == 0 or n[2] == 0) end
+    if n.unknown then
+      local s = seen[id]
+      if s then
+        applyLevel(n, s[1], s[2])
+      else
+        local lo, hi = ns.ZoneRange(n[4])
+        if lo then applyLevel(n, lo, hi, true) end
+      end
+    end
+  end
+end
+
+-- Remember the level of a mob without one in the data; true when it changed
+function ns.LearnMobLevel(npcID, level)
+  local n = ns.GEN.npcs[npcID]
+  if not (n and n.unknown and type(level) == "number" and level > 0) then return false end
+  local learned = ns.db.learned
+  learned.levels = learned.levels or {}
+  local s = learned.levels[npcID]
+  if s and level >= s[1] and level <= s[2] then return false end
+  s = s and { min(s[1], level), max(s[2], level) } or { level, level }
+  learned.levels[npcID] = s
+  applyLevel(n, s[1], s[2])
+  return true
+end
+
 ---------------------------------------------------------------- indexes
 -- MAT = curated gathering materials; DROP = every other tradeable mob drop from the database.
 function ns.BuildIndexes()
+  ns.FixMobLevels()
   local npcItems, rules, drops = {}, {}, {}
   local function addList(itemID, npcs)
     for _, npcID in ipairs(npcs) do
@@ -31,6 +70,8 @@ function ns.BuildIndexes()
     if not MAT[itemID] then
       drops[itemID] = { c = ns.DROP_CAT[d.c] or "dgoods", drop = d, r = 0 }
       if d.n then addList(itemID, d.n) end
+    elseif MAT[itemID].drop == d and d.n then
+      addList(itemID, d.n) -- fish that mobs drop too: those mobs stay marked
     end
   end
   for id, m in pairs(MAT) do
@@ -47,12 +88,27 @@ function ns.IsTracked(id)
   return MAT[id] ~= nil or (ns.DROP ~= nil and ns.DROP[id] ~= nil)
 end
 
--- Mob list for an item (gathering specials or general drops); nil for node/rule/world items
+-- Mob list for an item: gathering specials, general drops, and for leather / cloth the mobs that the loot
+-- tables say really drop (or are skinned for) it; nil for node and world-drop items
+local ruleLists = {}
 function ns.NpcList(id)
   local l = ns.GEN.itemNpcs[id]
   if l then return l end
-  local m = ns.DROP and ns.DROP[id]
-  return m and m.drop.n
+  local m = MAT[id] or (ns.DROP and ns.DROP[id])
+  if m and m.drop and m.drop.n then return m.drop.n end
+  local rc = ns.GEN.ruleChance and ns.GEN.ruleChance[id]
+  if not rc then return nil end
+  l = ruleLists[id]
+  if not l then
+    l = {}
+    for npcID, pct in pairs(rc) do
+      -- below 1% it is a rarity, not a place to farm (e.g. wool from murlocs at 0.02%)
+      if pct >= 1 and ns.GEN.npcs[npcID] then l[#l + 1] = npcID end
+    end
+    table.sort(l)
+    ruleLists[id] = l
+  end
+  return l
 end
 
 -- Drop chance in % for one mob. Sources, by trust:
@@ -87,8 +143,8 @@ function ns.DropChance(itemID, npcID)
 end
 
 -- Assumed chance when nothing is known (per kill, %), used only for ranking
-ns.DEFAULT_CHANCE = { dgoods = 8, drecipe = 1, dgear = 3 }
-ns.DEFAULT_WORLD_CHANCE = { dgoods = 1, drecipe = 0.03, dgear = 0.05 }
+ns.DEFAULT_CHANCE = { dgoods = 8, drecipe = 1, dgear = 3, fish = 8 }
+ns.DEFAULT_WORLD_CHANCE = { dgoods = 1, drecipe = 0.03, dgear = 0.05, fish = 1 }
 
 ---------------------------------------------------------------- zones / levels
 function ns.ZoneRange(mapID)
@@ -123,11 +179,20 @@ end
 
 function ns.DiffLabel(mult)
   if not mult then return "|cff808080—|r", 0 end
-  if mult <= 1.15 then return "|cff40ff40легко|r", 1 end
-  if mult <= 1.6 then return "|cffa0ff40просто|r", 2 end
-  if mult <= 2.4 then return "|cffffff40средне|r", 3 end
-  if mult <= 3.6 then return "|cffff9020трудно|r", 4 end
-  return "|cffff3030опасно|r", 5
+  if mult <= 1.15 then return "|cff40ff40" .. L["trivial"] .. "|r", 1 end
+  if mult <= 1.6 then return "|cffa0ff40" .. L["easy"] .. "|r", 2 end
+  if mult <= 2.4 then return "|cffffff40" .. L["medium"] .. "|r", 3 end
+  if mult <= 3.6 then return "|cffff9020" .. L["hard"] .. "|r", 4 end
+  return "|cffff3030" .. L["dangerous"] .. "|r", 5
+end
+
+-- The same five difficulty colors as DiffLabel, as r, g, b (map pin frames); grey when unknown
+local DIFF_RGB = { { 0.25, 1, 0.25 }, { 0.63, 1, 0.25 }, { 1, 1, 0.25 }, { 1, 0.56, 0.13 }, { 1, 0.19, 0.19 } }
+function ns.DiffColor(mult)
+  local _, level = ns.DiffLabel(mult)
+  local c = DIFF_RGB[level]
+  if not c then return 0.5, 0.5, 0.5 end
+  return c[1], c[2], c[3]
 end
 
 ---------------------------------------------------------------- sources
@@ -137,35 +202,74 @@ local function skillCheck(cat, req, ctx, S)
   local have = ctx.profs[prof]
   if not have then
     if S.onlyMyProfs then return nil end
-    return 1.5, "нет профессии «" .. (ns.PROF_LABEL[prof] or prof) .. "»"
+    return 1.5, string.format(L["no profession: %s"], ns.PROF_LABEL[prof] or prof)
   end
   req = req or 1
   if have >= req then return 1.0 end
   local gap = req - have
-  if gap <= 25 then return 1.4, string.format("нужно %d навыка (у тебя %d)", req, have) end
-  if S.showDangerous then return 3.0, string.format("нужно %d навыка (у тебя %d)", req, have) end
+  if gap <= 25 then return 1.4, string.format(L["needs %d skill (you have %d)"], req, have) end
+  if S.showDangerous then return 3.0, string.format(L["needs %d skill (you have %d)"], req, have) end
   return nil
+end
+
+-- Fishing: a cast catches something with chance (your skill - zone skill + 5)% (the rest "got away"),
+-- so there are no getaways from zone skill + 95. Sets src.success; a low catch rate makes the place worth less.
+local function fishCheck(src, ctx, S)
+  local have = ctx.profs.fish
+  if not have then
+    if S.onlyMyProfs then return nil end
+    src.success = clamp((1 - src.zs + 5) / 100, 0, 1)
+    local note = string.format(L["no profession: %s"], ns.PROF_LABEL.fish)
+    return 1.5, note, note
+  end
+  local success = clamp((have - src.zs + 5) / 100, 0, 1)
+  src.success = success
+  if success <= 0 then
+    if not S.showDangerous then return nil end
+    local note = string.format(L["needs %d skill (you have %d)"], src.zs - 4, have)
+    return 3.0, note, note
+  end
+  if success < 1 then return 1.0, nil, string.format(L["bite %d%%"], floor(success * 100 + 0.5)) end
+  return 1.0
 end
 
 local function finalize(list, src, m, ctx, S)
   local d = src.eff - ctx.level
   if (src.minEff or src.eff) - ctx.level > S.maxAbove and not S.showDangerous then return end
   local mult = ns.DangerMult(d)
-  local notes = {}
-  if src.elite then mult = mult * 3; notes[#notes + 1] = "элитные мобы" end
+  -- notes = full wording (tooltips, map), tags = short form for the card's one-line source rows
+  local notes, tags = {}, {}
+  if src.elite then
+    mult = mult * 3
+    notes[#notes + 1] = L["elite mobs"]
+    tags[#tags + 1] = L["elite"]
+  end
   local fac = ns.ZoneFaction(src.map)
   if (fac == "A" and ctx.faction == "Horde") or (fac == "H" and ctx.faction == "Alliance") then
     mult = mult * 1.6
-    notes[#notes + 1] = "территория чужой фракции"
+    notes[#notes + 1] = L["enemy faction territory"]
+    src.enemy = true -- shown as the zone name in orange (card, list), the full note goes to tooltips
   end
   local sm, snote = skillCheck(m.c, src.req, ctx, S)
   if not sm then return end
   mult = mult * sm
-  if snote then notes[#notes + 1] = snote end
+  if snote then
+    notes[#notes + 1] = snote
+    tags[#tags + 1] = snote
+  end
+  if src.kind == "fish" then
+    local fm, fnote, ftag = fishCheck(src, ctx, S)
+    if not fm then return end
+    mult = mult * fm
+    if fnote then notes[#notes + 1] = fnote end
+    if ftag then tags[#tags + 1] = ftag end
+    src.density = (src.density or 1) * max(0.05, src.success or 0)
+  end
   if src.density then mult = mult / (0.45 + 0.55 * src.density) end
   src.d = d
   src.mult = mult
   src.note = table.concat(notes, ", ")
+  src.tags = tags
   list[#list + 1] = src
 end
 
@@ -197,6 +301,31 @@ function ns.Sources(id, ctx)
         finalize(list, { kind = "zone", map = map, lo = lo, hi = hi, eff = eff, minEff = lo, req = req,
           density = density, guess = m.guess }, m, ctx, S)
       end
+    end
+  end
+
+  -- 1b) fishing: per zone the spot where it bites best (the zone itself or a coast / lake inside it), and
+  --     schools with known places; the share of the catch counts like node density
+  local fish = ns.GEN.fish and ns.GEN.fish[id]
+  if fish then
+    local maxp = 0
+    for _, z in pairs(fish.z) do if z[1] > maxp then maxp = z[1] end end
+    for _, per in pairs(fish.p or EMPTY) do
+      for _, p in pairs(per) do if p > maxp then maxp = p end end
+    end
+    local reach = lvl + min(2, S.maxAbove)
+    local function addFish(map, pct, zs, area, pool, spread)
+      local lo, hi = ns.ZoneRange(map)
+      if not (lo and zs) then return end
+      seenZone[map] = true
+      finalize(list, { kind = "fish", map = map, lo = lo, hi = hi, eff = min((lo + hi) / 2, max(lo, reach)), minEff = lo,
+        chance = pct, chanceSrc = "classic", zs = zs, area = (area and area > 0) and area or nil, pool = pool,
+        density = (maxp > 0 and pct / maxp or 0.5) * spread }, m, ctx, S)
+    end
+    for map, z in pairs(fish.z) do addFish(map, z[1], z[2], z[3], nil, 1) end
+    -- schools are few and move around: you travel between them
+    for map, per in pairs(fish.p or EMPTY) do
+      for pool, p in pairs(per) do addFish(map, p, ns.GEN.fishSkill[map], nil, pool, 0.6) end
     end
   end
 
@@ -241,7 +370,7 @@ function ns.Sources(id, ctx)
           chance, csrc = mid[1], mid[2]
         end
       end
-      finalize(list, { kind = "npc", map = map, lo = lo, hi = hi, eff = lo, req = sreq, elite = elite,
+      finalize(list, { kind = "npc", map = map, lo = lo, hi = hi, eff = lo, req = sreq, elite = elite, lvGuess = focus.guess,
         npcs = z.npcs, chance = chance, chanceSrc = csrc, corpses = corpses,
         density = maxSp > 0 and (0.3 + 0.7 * z.sp / maxSp) or 0.6 }, m, ctx, S)
       seenZone[map] = true
@@ -267,7 +396,8 @@ function ns.Sources(id, ctx)
     end
   end
 
-  -- 3) rule-based: any beast / humanoid in the level band
+  -- 3) rule-based: any beast / humanoid in the level band, only for zones where no mob of the loot tables is
+  --    known (section 2 already lists the real mobs with their chances there)
   if m.band then
     local bLo, bHi = m.band[1], m.band[2]
     for map in pairs(ns.GEN.zones) do
@@ -275,7 +405,7 @@ function ns.Sources(id, ctx)
       if zlo then
         local L = max(bLo, zlo)
         local top = min(bHi, zhi)
-        if L <= top then
+        if L <= top and not seenZone[map] then
           local overlap = (top - L + 1) / (zhi - zlo + 1)
           local sreq
           if m.c == "skin" then sreq = ns.SkinReq(L) end
@@ -412,7 +542,7 @@ function ns.Demand(id)
     end
   end
   if q == nil and pMin == nil then
-    return 0.8, { label = "|cff808080нет данных|r", none = true }
+    return 0.8, { label = "|cff808080" .. L["no data"] .. "|r", none = true }
   end
 
   local ps, qs = {}, {}
@@ -451,15 +581,15 @@ function ns.Demand(id)
   local trend = 1
   if refP and refP > 0 and pMin then trend = clamp(pMin / refP, 0.5, 2) end
 
-  -- neutral market (usual supply, no trend, typical turnover) = 1.0 -> "средний"
+  -- neutral market (usual supply, no trend, typical turnover) = 1.0 -> "average"
   local F = 0.625 + 0.45 * scarcity + (turnover and 0.5 * turnover or 0.15) + 0.3 * clamp(trend - 1, -0.5, 0.5)
   if q == 0 then F = F + 0.1 end
 
   local label, level
-  if q == 0 then label, level = "|cff40ff40нет на аук.!|r", "empty"
-  elseif F >= 1.25 then label, level = "|cff40ff40высокий|r", "high"
-  elseif F >= 0.95 then label, level = "|cffffff40средний|r", "mid"
-  else label, level = "|cffff7060низкий|r", "low" end
+  if q == 0 then label, level = "|cff40ff40" .. L["none on AH!"] .. "|r", "empty"
+  elseif F >= 1.25 then label, level = "|cff40ff40" .. L["high"] .. "|r", "high"
+  elseif F >= 0.95 then label, level = "|cffffff40" .. L["average"] .. "|r", "mid"
+  else label, level = "|cffff7060" .. L["low"] .. "|r", "low" end
 
   return F, { label = label, level = level, scarcity = scarcity, refQ = refQ, refP = refP, perDay = perDay, trend = trend,
     q = q, pMin = pMin, days = srcDays, ownDays = ownDays, extDays = extDays }
@@ -482,11 +612,11 @@ end
 function ns.DemandTip(dem)
   local mode = ns.S and ns.S.tipDemand or "icon"
   if mode == "off" or not dem or dem.none then return "" end
-  if mode == "text" then return "  |cff909090спрос|r " .. dem.label end
+  if mode == "text" then return "  |cff909090" .. L["demand"] .. "|r " .. dem.label end
   return " " .. ns.DemandIcon(dem) .. (dem.level == "empty" and "|cff40ff40!|r" or "")
 end
 
--- Enough units on the AH to be worth farming (setting "Мин. на аукционе"); unknown quantity passes
+-- Enough units on the AH to be worth farming (setting "Min. on AH"); unknown quantity passes
 function ns.Liquid(row)
   local minQty = ns.S and ns.S.minQty or 0
   return minQty <= 0 or row.qty == nil or row.qty >= minQty
@@ -511,7 +641,13 @@ function ns.Compute()
       F = F, dem = dem }
     if best then
       local yield
-      if m.drop then
+      local uph = CATS[m.c].uph
+      if best.kind == "fish" then
+        -- fishing: casts/hour x share of the catch x casts that catch something at your skill
+        row.chance = best.chance
+        yield = (best.chance or 5) / 100 * (best.success or 0.5)
+        uph = CATS.fish.uph
+      elseif m.drop then
         -- mob drops: kills/hour x drop chance; unknown chances use a cautious default and rank lower
         local pct = best.chance
         if not pct then
@@ -520,11 +656,12 @@ function ns.Compute()
         end
         row.chance = pct
         yield = pct / 100
+        if m.fish then uph = CATS.dgoods.uph end -- fish that mobs drop: kills, not casts
       else
         yield = m.r
         row.chance = best.chance
       end
-      row.uph = CATS[m.c].uph * yield / best.mult
+      row.uph = uph * yield / best.mult
       if p then
         row.gph = p * 0.95 * row.uph
         row.score = row.gph * F * (row.chanceGuess and 0.6 or 1)
@@ -564,8 +701,8 @@ end
 
 ---------------------------------------------------------------- mobs
 local TYPE_LOOKUP = {
-  Beast = "beast", ["Животное"] = "beast", ["Зверь"] = "beast",
-  Humanoid = "humanoid", ["Гуманоид"] = "humanoid",
+  Beast = "beast", [L["Beast"]] = "beast",
+  Humanoid = "humanoid", [L["Humanoid"]] = "humanoid",
 }
 do
   local ci = C_CreatureInfo
@@ -594,6 +731,7 @@ function ns.UnitMaterials(unit)
   local S = ns.S
   local level = ns.Pub(UnitLevel(unit))
   if type(level) ~= "number" then level = nil elseif level < 0 then level = ctx.level + 10 end
+  if level and ns.LearnMobLevel(npcID, ns.Pub(UnitLevel(unit))) then ns.Invalidate() end
   local ctype = TYPE_LOOKUP[ns.Pub(UnitCreatureType(unit)) or ""]
 
   local found = {}
