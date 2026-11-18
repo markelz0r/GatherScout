@@ -17,9 +17,9 @@ local search = ""
 local COLS = {
   { key = "pin",    title = "",            w = 20,  justify = "CENTER" },
   { key = "name",   title = L["Item"],       w = 190, justify = "LEFT" },
-  { key = "price",  title = L["Price"],      w = 96,  justify = "RIGHT" },
+  { key = "price",  title = L["Price"],      w = 106, justify = "RIGHT" },
   { key = "qty",    title = L["On AH"],      w = 60,  justify = "RIGHT" },
-  { key = "F",      title = L["Demand"],     w = 100, justify = "CENTER" },
+  { key = "F",      title = L["Demand"],     w = 90,  justify = "CENTER" },
   { key = "diff",   title = L["Difficulty"], w = 70,  justify = "CENTER" },
   { key = "where",  title = L["Best place (for you)"], w = 222, justify = "LEFT" },
   { key = "chance", title = L["Chance"],     w = 54,  justify = "CENTER" },
@@ -127,10 +127,16 @@ local function ago(t)
   return string.format(L["%d d ago"], floor(m / 1440))
 end
 
--- "market price" plus the lowest price when someone is clearly undercutting below the market
+-- Price trend next to a price: the cheapest auction now vs. its usual price (7 days), when it moved 10%+
+local function trendText(dem)
+  if dem and dem.refP and dem.trend and (dem.trend >= 1.1 or dem.trend <= 0.9) then return " " .. pct(dem.trend) end
+  return ""
+end
+
+-- "market price" (with its trend) plus the lowest price when someone is clearly undercutting below the market
 local function priceText(row, size)
   if not row.price then return nil end
-  local txt = ns.Money(row.price, size)
+  local txt = ns.Money(row.price, size) .. trendText(row.dem)
   if row.minP and row.minP < row.price * 0.9 then
     txt = txt .. "  |cff909090" .. string.format(L["min. %s"], ns.Money(row.minP, size)) .. "|r"
   end
@@ -220,7 +226,7 @@ local function drawRows()
       local color = (q and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[q] and ITEM_QUALITY_COLORS[q].hex) or "|cffffffff"
       r.icon:SetTexture(ns.ItemIcon(id))
       r.cols.name:SetText(color .. name .. "|r" .. (data.m.guess and " |cff909090*|r" or ""))
-      local ptxt = data.price and ns.Money(data.price) or "|cff808080—|r"
+      local ptxt = data.price and (ns.Money(data.price) .. trendText(data.dem)) or "|cff808080—|r"
       r.cols.price:SetText(ptxt)
       if data.qty == nil then
         r.cols.qty:SetText("|cff808080—|r")
@@ -229,11 +235,8 @@ local function drawRows()
       else
         r.cols.qty:SetText(ns.Num(data.qty))
       end
-      local dl = data.dem.none and data.dem.label or (ns.DemandIcon(data.dem, 12) .. " " .. data.dem.label)
-      if data.dem.refP and data.dem.trend and (data.dem.trend >= 1.1 or data.dem.trend <= 0.9) then
-        dl = dl .. " " .. pct(data.dem.trend)
-      end
-      r.cols.F:SetText(dl)
+      local icon = ns.DemandIcon(data.dem, 12)
+      r.cols.F:SetText(icon ~= "" and (icon .. " " .. data.dem.label) or data.dem.label)
       r.cols.diff:SetText((ns.DiffLabel(data.best and data.best.mult)))
       r.cols.where:SetText(ns.WhereText(data.best, id))
       if data.chance and not data.chanceGuess and data.best then
@@ -528,15 +531,17 @@ local function createFrame()
     b:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
     if col.key == "F" then
       tooltipFor(b, L["Auction house demand"],
-        ns.DemandIcon({ level = "high" }) .. " " .. L["high: fewer units than usual, or they sell fast"] .. "\n"
-        .. ns.DemandIcon({ level = "mid" }) .. " " .. L["average: the usual situation"] .. "\n"
-        .. ns.DemandIcon({ level = "low" }) .. " " .. L["low: the auction house is flooded, it sells slowly"] .. "\n"
-        .. ns.DemandIcon({ level = "empty" }) .. "|cff40ff40!|r " .. L["not a single auction"] .. "\n\n"
-        .. L["Based on the number of auctions vs. usual (7 days), the price trend and how fast auctions disappear between your scans. Click to sort."])
+        ns.DemandIcon({ level = "high" }) .. " " .. L["high: what is on the AH sells out within about a day"] .. "\n"
+        .. ns.DemandIcon({ level = "mid" }) .. " " .. L["average: it lasts 1–3 days"] .. "\n"
+        .. ns.DemandIcon({ level = "low" }) .. " " .. L["low: enough for more than 3 days, it sells slowly"] .. "\n"
+        .. ns.DemandIcon({ level = "empty" }) .. "|cff40ff40!|r " .. L["not a single auction"] .. "\n"
+        .. "|cff909090" .. L["few scans"] .. "|r — " .. L["the sales speed is not measured yet, scan again in a few hours"] .. "\n\n"
+        .. L["How many days the units on the AH last at the speed they leave between your scans (sales, but also cancelled and expired auctions, so it is an upper estimate), adjusted for the supply vs. usual (7 days) and the price trend. Click to sort."])
     end
     if col.key == "price" then
       tooltipFor(b, L["Market price"],
-        L["The price at which most of the cheap auctions really sit: the cheap part of the market (15–30% of all units) is taken and outliers are dropped from it, e.g. a few dozen units dumped in front of thousands at the normal price. The lowest price is shown in the row tooltip and in the card if it is noticeably lower. Click to sort."])
+        L["The price at which most of the cheap auctions really sit: the cheap part of the market (15–30% of all units) is taken and outliers are dropped from it, e.g. a few dozen units dumped in front of thousands at the normal price. The lowest price is shown in the row tooltip and in the card if it is noticeably lower. Click to sort."]
+        .. "\n\n" .. L["+N% / -N%: the cheapest auction now vs. its usual price over 7 days."])
     elseif col.key == "diff" then
       tooltipFor(b, L["Difficulty for you"],
         L["How hard it is for you in particular: the mob level at the best place vs. yours (trivial: you kill everything there, medium: a zone of your level, dangerous: the mobs are higher), elite mobs, enemy faction, missing skill, few nodes. Click to sort."])
@@ -1417,7 +1422,13 @@ local function drawCard(id)
         (dem.refQ and dem.refQ > 0) and pct(dem.q / dem.refQ) or L["needs 2+ days of history"])
     end
     if dem.perDay then
-      lines[#lines + 1] = string.format(L["Leaves the AH: ~%s pcs/day"], ns.Num(dem.perDay))
+      local stock = ""
+      if dem.stockDays then
+        local d = dem.stockDays
+        stock = ", " .. string.format(L["the stock lasts ~%s days"],
+          d < 10 and ns.Dec("%.1f", d) or d < 100 and ns.Num(d) or "99+")
+      end
+      lines[#lines + 1] = string.format(L["Leaves the AH: ~%s pcs/day"], ns.Num(dem.perDay)) .. stock
         .. " |cff909090(" .. L["from your scans: sales and cancelled auctions"] .. ")|r"
     else
       lines[#lines + 1] = "|cff909090" .. L["Sales speed: needs a few of your scans a couple of hours apart."] .. "|r"

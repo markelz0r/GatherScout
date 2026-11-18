@@ -8,7 +8,7 @@ GatherScout is an Auction House helper for **World of Warcraft: Forever**. It sc
 
 - **Auction House scan.** A full scan reads the whole AH in a few seconds (the server allows one every 15 minutes). A quick scan checks only ~120 gathering materials. If Auctionator has just done a full scan, GatherScout reuses the result instead of spending its own.
 - **Market price that ignores dumping.** The price comes from the cheap part of the market (15–30% of all units) with outliers removed. A handful of items listed far below the rest does not drag it down, and the minimum price is shown separately.
-- **Demand.** Listings now compared with the 7-day norm, the price trend, and an estimate of units leaving the AH per day from your own scans.
+- **Demand.** How many days the units on the AH last at the speed they leave between your own scans, adjusted for listings vs. the 7-day norm and the price trend.
 - **Difficulty for you.** Zones where you kill everything rank higher than zones at your own level, where half the mobs can kill you. Elites, enemy faction territory, missing gathering skill and node density are taken into account, and zones far above your level are hidden.
 - **Mob drops**: about 4,300 tradeable items, including meat, fangs, cloth, recipes, BoE gear and world drops. Bind-on-pickup, quest items and grey junk are filtered out.
 - **Drop chances.** The colour shows the source: white is wowhead data via Questie, light blue is CMaNGOS classic data, green is your own kills. Your statistics blend in gradually.

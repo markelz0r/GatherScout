@@ -23,6 +23,11 @@
   An unknown chance shows "??".
 - Auction House: a repeated item list from the server (e.g. after Auctionator's scan) no longer resets
   the scan status or the 15-minute timer; the AH buttons fit their labels in every language.
+- Demand is now mostly how many days the units on the AH last at the speed they leave between your scans:
+  about a day or less is high, 1–3 days average, more is low. A big stock that sells out fast (silk, linen,
+  wool, copper) used to show "average". Until your scans span a few hours it says "few scans" in grey
+  instead of a confident "average"; the item card shows the days of stock. The price change (+25%) moved
+  from the Demand column to the Price column, where it belongs.
 
 ---
 
@@ -48,6 +53,12 @@
   место фарма. Неизвестный шанс показывается как «??».
 - Аукцион: повторный список лотов от сервера (например, после скана Auctionator) больше не сбрасывает
   статус скана и 15-минутный таймер; кнопки у аукциона вмещают надпись на любом языке.
+- Спрос теперь в первую очередь — на сколько дней хватит лотов на аукционе при той скорости, с которой
+  они уходят между твоими сканами: около дня и меньше — высокий, 1–3 дня — средний, дольше — низкий.
+  Раньше большой запас, который быстро раскупают (шёлк, лён, шерсть, медь), показывался как «средний».
+  Пока твои сканы не охватили несколько часов, вместо уверенного «средний» серым написано «мало сканов»;
+  в карточке предмета видно, на сколько дней хватит запаса. Изменение цены (+25%) переехало из колонки
+  «Спрос» в колонку «Цена».
 
 # 1.2.0
 

@@ -519,10 +519,14 @@ end
 
 ---------------------------------------------------------------- demand
 -- Demand factor ~0.4 .. 1.75 (1.0 = normal) plus details for tooltips and the chart.
+--   * turnover: how many days the units on the AH last at the speed they leave between your own scans
+--     (sold OR cancelled/expired, so an upper estimate of sales: the game API has no sales history);
+--     needs a few scans some hours apart. This is the main part: a big stock that sells out within a day
+--     is high demand, a small one that nobody buys is not.
 --   * scarcity: units on the AH now vs. the usual daily amount over the last 7 days
---   * turnover: units that vanished between your own scans (sold OR cancelled/expired) — an estimate,
---     the game API has no sales history; needs a few scans some hours apart
 --   * trend:    cheapest price now vs. the usual daily low over the last 7 days
+-- Without turnover the level is "unknown" (few scans): supply and price alone cannot tell how fast it sells.
+local LOG3 = log(3)
 function ns.Demand(id)
   local r = ns.MarketRec(id)
   local series, ownDays, extDays = ns.DailyHistory(id, 8)
@@ -576,26 +580,35 @@ function ns.Demand(id)
     end
   end
   local perDay = hours >= 6 and (sold / hours * 24) or nil
-  local turnover = perDay and clamp(perDay / max(q or 0, 10), 0, 1) or nil
+  -- days the stock lasts: <= ~1 day high, ~1-3 days average, more low (0 when nothing is on the AH)
+  local stockDays, turnover
+  if perDay and q then
+    if q == 0 then stockDays = 0
+    elseif perDay > 0 then stockDays = q / perDay end
+    turnover = stockDays and clamp(0.75 - 0.5 * log(max(stockDays, 0.01)) / LOG3, 0, 1) or 0
+  end
 
   local trend = 1
   if refP and refP > 0 and pMin then trend = clamp(pMin / refP, 0.5, 2) end
 
-  -- neutral market (usual supply, no trend, typical turnover) = 1.0 -> "average"
+  -- neutral market (usual supply, no trend, stock for ~2 days) = 1.0 -> "average"
   local F = 0.625 + 0.45 * scarcity + (turnover and 0.5 * turnover or 0.15) + 0.3 * clamp(trend - 1, -0.5, 0.5)
   if q == 0 then F = F + 0.1 end
 
   local label, level
   if q == 0 then label, level = "|cff40ff40" .. L["none on AH!"] .. "|r", "empty"
+  elseif not turnover then label, level = "|cff909090" .. L["few scans"] .. "|r", "unknown"
   elseif F >= 1.25 then label, level = "|cff40ff40" .. L["high"] .. "|r", "high"
   elseif F >= 0.95 then label, level = "|cffffff40" .. L["average"] .. "|r", "mid"
   else label, level = "|cffff7060" .. L["low"] .. "|r", "low" end
 
-  return F, { label = label, level = level, scarcity = scarcity, refQ = refQ, refP = refP, perDay = perDay, trend = trend,
+  return F, { label = label, level = level, unknown = level == "unknown" or nil, scarcity = scarcity, refQ = refQ,
+    refP = refP, perDay = perDay, stockDays = stockDays, trend = trend,
     q = q, pMin = pMin, days = srcDays, ownDays = ownDays, extDays = extDays }
 end
 
--- Traffic-light dot for demand: green = high (or nothing on the AH), yellow = normal, red = low
+-- Traffic-light dot for demand: green = high (or nothing on the AH), yellow = normal, red = low;
+-- none while the sales speed is unknown
 local DEMAND_ICON = {
   high = "Interface\\COMMON\\Indicator-Green",
   empty = "Interface\\COMMON\\Indicator-Green",
@@ -603,7 +616,7 @@ local DEMAND_ICON = {
   low = "Interface\\COMMON\\Indicator-Red",
 }
 function ns.DemandIcon(dem, size)
-  if not dem or dem.none or not dem.level then return "" end
+  if not dem or dem.none or not DEMAND_ICON[dem.level or ""] then return "" end
   size = size or 14
   return string.format("|T%s:%d:%d|t", DEMAND_ICON[dem.level], size, size)
 end
