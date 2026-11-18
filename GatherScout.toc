@@ -8,6 +8,7 @@
 ## SavedVariables: GatherScoutDB
 ## X-License: GPL-3.0-or-later
 ## X-Credits: zone/node/mob/loot data generated from QuestieDB (GPL-3.0) and CMaNGOS classic-db (GPL-3.0)
+## X-Curse-Project-ID: 1814294
 ## X-Website: https://github.com/markelz0r/GatherScout
 ## IconTexture: Interface\Icons\INV_Misc_Herb_07
 
