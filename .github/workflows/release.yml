@@ -27,5 +27,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      # zip keeps the default name (GatherScout-1.2.1-forever.zip);
+      # the CurseForge/Wago file label is just the version (1.2.1)
       - name: Package and release
         uses: BigWigsMods/packager@v2
+        with:
+          args: -n "{package-name}-{project-version}{nolib}{classic}:{project-version}"
