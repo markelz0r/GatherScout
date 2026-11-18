@@ -21,9 +21,9 @@ local COLS = {
   { key = "qty",    title = L["On AH"],      w = 60,  justify = "RIGHT" },
   { key = "F",      title = L["Demand"],     w = 90,  justify = "CENTER" },
   { key = "diff",   title = L["Difficulty"], w = 70,  justify = "CENTER" },
-  { key = "where",  title = L["Best place (for you)"], w = 222, justify = "LEFT" },
+  { key = "where",  title = L["Best place (for you)"], w = 248, justify = "LEFT" },
   { key = "chance", title = L["Chance"],     w = 54,  justify = "CENTER" },
-  { key = "score",  title = L["~income/h"],  w = 96,  justify = "RIGHT" },
+  { key = "score",  title = "ScoutScore",    w = 70,  justify = "CENTER" },
 }
 
 local BACKDROP = {
@@ -143,6 +143,20 @@ local function priceText(row, size)
   return txt
 end
 
+-- ScoutScore with its word: "82 excellent"
+local function scoreText(row)
+  local s, word = ns.ScoreText(row.scout)
+  return word and (s .. " " .. L[word]) or s
+end
+
+-- What pulled the ScoutScore down, when it matters: few buyers for this much, guesses
+local function scoreNotes(row)
+  local notes = {}
+  if row.depth and row.depth < 0.5 then notes[#notes + 1] = L["few buyers"] end
+  if row.best and row.best.conf and row.best.conf < 1 then notes[#notes + 1] = L["partly a guess"] end
+  return #notes > 0 and ("|cff909090" .. table.concat(notes, ", ") .. "|r") or nil
+end
+
 -- gathering places (herbs, ore) have no drop chance; everything else that has none shows "??"
 local function chanceOf(row)
   if not row.chance or row.chanceGuess then
@@ -168,7 +182,11 @@ function ns.ShowItemDetails(owner, data)
   end
   local ch = chanceOf(data)
   if ch then tt:AddDoubleLine(L["Chance"], ch, 1, 0.82, 0) end
-  if data.gph then tt:AddDoubleLine(L["~Income"], string.format(L["%s /h"], ns.Money(data.gph)), 1, 0.82, 0) end
+  if data.scout then
+    tt:AddDoubleLine("ScoutScore", scoreText(data), 1, 0.82, 0)
+    local sn = scoreNotes(data)
+    if sn then tt:AddDoubleLine(" ", sn) end
+  end
   tt:AddLine(" ")
   tt:AddLine(L["Left-click: item card with chart, where to farm, map"], 0.6, 0.6, 0.6)
   tt:AddLine(L["Right-click: pin    Shift+left-click: link in chat"], 0.6, 0.6, 0.6)
@@ -184,8 +202,11 @@ local function sortValue(row, key)
   if key == "diff" then return row.best and -row.best.mult or -999 end
   if key == "where" then return row.best and ns.MapName(row.best.map) or "\255" end -- no place: sorts last
   if key == "chance" then return (row.chance and not row.chanceGuess) and row.chance or -1 end
-  return row.score or (row.best and -1 or -2)
+  return row.value or (row.best and -1 or -2) -- ScoutScore: by the value behind it, no ties from rounding
 end
+
+-- the rows of the list as shown (tests)
+function ns.UI_View() return view end
 
 local function buildView()
   local res = ns.Compute()
@@ -246,7 +267,7 @@ local function drawRows()
       else
         r.cols.chance:SetText("|cff808080-|r") -- gathered, or nowhere to get it
       end
-      r.cols.score:SetText(data.gph and ns.Money(data.gph) or "|cff808080—|r")
+      r.cols.score:SetText((ns.ScoreText(data.scout)))
       r.pin.tex:SetDesaturated(not pins[id])
       r.pin.tex:SetAlpha(pins[id] and 1 or 0.3)
       r.sel:SetShown(selectedId == id)
@@ -556,8 +577,9 @@ local function createFrame()
         .. ns.CHANCE_COLOR.learned .. L["green"] .. "|r — " .. L["from your kills (20+ corpses of this mob)"] .. "\n"
         .. L["?? means the drop chance is unknown; a dash means it is gathered (herbs, ore). Click to sort."])
     elseif col.key == "score" then
-      tooltipFor(b, L["Approximate income per hour"],
-        L["Price x how much you get per hour x demand / difficulty. A rough estimate to compare rows with each other, not an exact sum. The list is sorted by it by default. Click to sort."])
+      tooltipFor(b, "ScoutScore",
+        L["How good it is for you to earn with right now, 0–100, against everything else in the list. It weighs the price, how easy it is for you to get (mobs below your level are easy, above you hard; elites, enemy territory, skill), the drop chance, demand and whether the AH buys enough of it; guesses count less. 50 = as good as the 10th best item, 75 = three times better. The list is sorted by it by default. Click to sort."]
+        .. "\n\n" .. ns.ScoreLegend())
     end
     if col.key ~= "pin" then
       b:SetScript("OnClick", function()
@@ -782,6 +804,7 @@ end
 ---------------------------------------------------------------- item card: header, 21-day chart, sources
 local DAYS = 21
 local PW, PH = 400, 130
+local CHART_TOP = 124 -- below the two stats lines of the card
 local card
 
 local function createCard()
@@ -832,12 +855,12 @@ local function createCard()
     return string.format("|TInterface\\Buttons\\WHITE8X8:%d:%d:0:0:8:8:0:8:0:8:%d:%d:%d|t", h, w, r, g, b)
   end
   local legend = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-  legend:SetPoint("TOPLEFT", 14, -104)
+  legend:SetPoint("TOPLEFT", 14, -(CHART_TOP - 20))
   legend:SetText(swatch(14, 3, 255, 209, 0) .. " " .. L["cheapest lot of the day"] .. "      " .. swatch(5, 5, 102, 255, 102)
     .. " " .. L["market price"] .. "      " .. swatch(8, 10, 89, 153, 255) .. " " .. L["units on the AH"])
 
   local plot = CreateFrame("Frame", nil, card)
-  plot:SetPoint("TOPLEFT", 66, -124)
+  plot:SetPoint("TOPLEFT", 66, -CHART_TOP)
   plot:SetSize(PW, PH)
   card.plot = plot
   local pbg = plot:CreateTexture(nil, "BACKGROUND")
@@ -919,7 +942,7 @@ local function createCard()
   card.empty:SetText(L["No history yet. Scan the auction house on different days and the chart fills up. Price history from another auction addon is picked up automatically."])
 
   card.summary = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-  card.summary:SetPoint("TOPLEFT", 14, -(124 + PH + 22))
+  card.summary:SetPoint("TOPLEFT", 14, -(CHART_TOP + PH + 22))
   card.summary:SetWidth(500)
   card.summary:SetJustifyH("LEFT")
   card.summary:SetSpacing(4)
@@ -1272,7 +1295,7 @@ drawWhere = function(row)
   local nSub = (others == SUB_MAX + 1) and others or min(SUB_MAX, others)
 
   -- keep inside the card: fewer mobs under the opened source first, then fewer sources
-  local avail = H - 12 - (124 + PH + 22) - card.summary:GetStringHeight() - 14
+  local avail = H - 12 - (CHART_TOP + PH + 22) - card.summary:GetStringHeight() - 14
     - card.whereTitle:GetStringHeight() - 6
   local function height()
     local h = nSrc * ROW_H + nSub * SUB_H
@@ -1402,7 +1425,11 @@ local function drawCard(id)
     local second = string.format(L["Difficulty: %s"], (ns.DiffLabel(row.best and row.best.mult)))
     local ch = chanceOf(row)
     if ch then second = second .. "      " .. string.format(L["Chance: %s"], ch) end
-    if row.gph then second = second .. "      " .. string.format(L["~Income: %s /h"], ns.Money(row.gph, 14)) end
+    if row.scout then
+      second = second .. "      ScoutScore: " .. scoreText(row)
+      local sn = scoreNotes(row)
+      if sn then second = second .. "  " .. sn end
+    end
     stats[#stats + 1] = second
   end
   card.stats:SetText(table.concat(stats, "\n"))

@@ -1,16 +1,19 @@
 -- GatherScout analysis: where each material comes from, how hard it is for *you*, and how well it sells.
 --
---   score (~gold/hour) = price * 0.95 * unitsPerHour(category) * yield / difficulty * demandFactor
+--   value = price * gain at the best place for you * market * demand * confidence
+--   ScoutScore (0-100) = value against the other things in the list (ns.ScoreRows)
 --
--- difficulty grows with how far the mobs you must face are above your level (a zone where you kill everything
--- is ~1.0, a zone at your level ~2.0, a few levels above ~3-5), elite mobs, enemy-faction zones,
--- a profession skill that is a bit short, and sparse nodes.
+-- gain is a relative weight, not a forecast: the category's base amount x yield (drop chance, or the item's
+-- share of a node) / difficulty, and for mobs a little steeper with level, since mobs below you go down fast
+-- and those above you slowly. Difficulty (the "Difficulty" column) grows with how far the mobs you must face
+-- are above your level (a zone where you kill everything is ~1.0, a zone at your level ~2.0, a few levels
+-- above ~3-5), elite mobs, enemy-faction zones, a profession skill that is a bit short, and sparse nodes.
 local _, ns = ...
 local L = ns.L
 
 local MAT, CATS = ns.MAT, ns.CATS
 local EMPTY = {}
-local floor, max, min, log = math.floor, math.max, math.min, math.log
+local floor, max, min, log, sqrt = math.floor, math.max, math.min, math.log, math.sqrt
 
 local function clamp(x, a, b) if x < a then return a elseif x > b then return b end return x end
 
@@ -195,6 +198,33 @@ function ns.DiffColor(mult)
   return c[1], c[2], c[3]
 end
 
+---------------------------------------------------------------- gain
+-- How much a source gives you for the effort, relative to the others (src.gain), and src.conf < 1 when it rests
+-- on guesses (unknown drop chance, unseen mob level, hand-placed or learned place). Mobs count difficulty ^ 1.5:
+-- ten levels below you ~2.8 times better than at your level, four above ~2.4 times worse.
+local function gain(src, m)
+  local kind = src.kind
+  local mobs = kind == "npc" or kind == "rule" or kind == "world" or (kind == "zone" and src.learned and m.drop)
+  local cat, yield = CATS[m.c], m.r or 1
+  if kind == "fish" then
+    cat, yield = CATS.fish, (src.chance or 5) / 100 * (src.success or 0.5)
+  elseif m.drop then
+    -- tradeable mob drops (and fish that mobs drop): the drop chance, unknown ones a cautious default
+    if m.fish then cat = CATS.dgoods end
+    if src.chance then
+      yield = src.chance / 100
+    else
+      yield = ((kind == "world") and ns.DEFAULT_WORLD_CHANCE[m.c] or ns.DEFAULT_CHANCE[m.c] or 8) / 100
+      src.chanceGuess = true
+    end
+  end
+  local g = cat.uph * yield / src.mult
+  if mobs then g = g / sqrt(ns.DangerMult(src.d)) end
+  src.gain = g
+  src.conf = (src.chanceGuess and 0.6 or 1) * (src.lvGuess and 0.9 or 1) * ((src.guess or src.learned) and 0.8 or 1)
+  src.value = g * src.conf
+end
+
 ---------------------------------------------------------------- sources
 local function skillCheck(cat, req, ctx, S)
   local prof = CATS[cat].prof
@@ -270,6 +300,7 @@ local function finalize(list, src, m, ctx, S)
   src.mult = mult
   src.note = table.concat(notes, ", ")
   src.tags = tags
+  gain(src, m)
   list[#list + 1] = src
 end
 
@@ -344,13 +375,29 @@ function ns.Sources(id, ctx)
         if z.sp > maxSp then maxSp = z.sp end
       end
     end
-    local function value(npcID)
-      local n = ns.GEN.npcs[npcID]
-      local elite = (n[3] == 1 or n[3] == 2) and 3 or 1
-      return (n[5] + 1) / (ns.DangerMult(n[1] - lvl) * elite)
+    -- the best mob for you: its drop chance (unknown: the zone's median) / difficulty at its level
+    -- (^ 1.5, as in gain), a little less for one with few spawns
+    local function rank(z)
+      local val, known = {}, {}
+      for _, npcID in ipairs(z.npcs) do
+        local c = ns.DropChance(id, npcID)
+        if c then known[#known + 1] = c end
+      end
+      table.sort(known)
+      local mid = known[floor((#known + 1) / 2)] or 1
+      for _, npcID in ipairs(z.npcs) do
+        local n = ns.GEN.npcs[npcID]
+        local c = ns.DropChance(id, npcID) or mid
+        val[npcID] = c / (ns.DangerMult(n[1] - lvl) ^ 1.5 * ((n[3] == 1 or n[3] == 2) and 3 or 1))
+          * (0.5 + 0.5 * min(1, (n[5] + 1) / 15))
+      end
+      table.sort(z.npcs, function(a, b)
+        if val[a] ~= val[b] then return val[a] > val[b] end
+        return a < b
+      end)
     end
     for map, z in pairs(byZone) do
-      table.sort(z.npcs, function(a, b) return value(a) > value(b) end)
+      rank(z)
       local focus = ns.GEN.npcs[z.npcs[1]]
       local lo, hi = focus[1], focus[2]
       local elite = focus[3] == 1 or focus[3] == 2
@@ -428,7 +475,11 @@ function ns.Sources(id, ctx)
     end
   end
 
-  table.sort(list, function(a, b) return a.mult < b.mult end)
+  -- best for you first: the most gain (guesses count less), then the easiest
+  table.sort(list, function(a, b)
+    if a.value ~= b.value then return a.value > b.value end
+    return a.mult < b.mult
+  end)
   return list
 end
 
@@ -629,6 +680,27 @@ function ns.DemandTip(dem)
   return " " .. ns.DemandIcon(dem) .. (dem.level == "empty" and "|cff40ff40!|r" or "")
 end
 
+-- ScoutScore as colored text: 80+ excellent, 60+ good, 40+ fair, 20+ weak, below that not worth it
+local SCORE_TIERS = {
+  { 80, "|cff40ff40", "excellent" }, { 60, "|cffa0ff40", "good" }, { 40, "|cffffff40", "fair" },
+  { 20, "|cffff9020", "weak" }, { 0, "|cff909090", "poor" },
+}
+function ns.ScoreText(score)
+  if not score then return "|cff808080—|r" end
+  for _, t in ipairs(SCORE_TIERS) do
+    if score >= t[1] then return t[2] .. score .. "|r", t[3] end
+  end
+end
+
+-- The color legend, e.g. for the column header: "80+ excellent  60+ good ..."
+function ns.ScoreLegend()
+  local parts = {}
+  for _, t in ipairs(SCORE_TIERS) do
+    parts[#parts + 1] = t[2] .. (t[1] > 0 and (t[1] .. "+") or ("<" .. SCORE_TIERS[#SCORE_TIERS - 1][1])) .. "|r " .. L[t[3]]
+  end
+  return table.concat(parts, "   ")
+end
+
 -- Enough units on the AH to be worth farming (setting "Min. on AH"); unknown quantity passes
 function ns.Liquid(row)
   local minQty = ns.S and ns.S.minQty or 0
@@ -636,6 +708,27 @@ function ns.Liquid(row)
 end
 
 ---------------------------------------------------------------- ranking
+-- ScoutScore 0-100: an item's value against the other things you could farm right now: the rows the list shows
+-- (enough on the AH, see ns.Liquid; all rows with a value when none qualify). 50 = as good as the reference
+-- (the 10th best of them), 75 = three times better, 25 = a third of it; the very best land in the 80s-90s,
+-- junk near 0.
+ns.SCORE_REF_RANK = 10
+function ns.ScoreRows(res)
+  local vals, all = {}, {}
+  for _, row in ipairs(res) do
+    if row.value and row.value > 0 then
+      all[#all + 1] = row.value
+      if ns.Liquid(row) then vals[#vals + 1] = row.value end
+    end
+  end
+  if #vals == 0 then vals = all end
+  table.sort(vals, function(a, b) return a > b end)
+  local ref = vals[min(ns.SCORE_REF_RANK, #vals)]
+  for _, row in ipairs(res) do
+    row.scout = (row.value and ref and ref > 0) and floor(100 * row.value / (row.value + ref) + 0.5) or nil
+  end
+end
+
 function ns.Compute()
   if not ns.dirty and ns.results then return ns.results end
   local ctx = ns.Context()
@@ -653,31 +746,15 @@ function ns.Compute()
       minP = rec and rec.min,
       F = F, dem = dem }
     if best then
-      local yield
-      local uph = CATS[m.c].uph
-      if best.kind == "fish" then
-        -- fishing: casts/hour x share of the catch x casts that catch something at your skill
-        row.chance = best.chance
-        yield = (best.chance or 5) / 100 * (best.success or 0.5)
-        uph = CATS.fish.uph
-      elseif m.drop then
-        -- mob drops: kills/hour x drop chance; unknown chances use a cautious default and rank lower
-        local pct = best.chance
-        if not pct then
-          pct = (best.kind == "world") and ns.DEFAULT_WORLD_CHANCE[m.c] or ns.DEFAULT_CHANCE[m.c]
-          row.chanceGuess = true
-        end
-        row.chance = pct
-        yield = pct / 100
-        if m.fish then uph = CATS.dgoods.uph end -- fish that mobs drop: kills, not casts
-      else
-        yield = m.r
-        row.chance = best.chance
-      end
-      row.uph = uph * yield / best.mult
-      if p then
-        row.gph = p * 0.95 * row.uph
-        row.score = row.gph * F * (row.chanceGuess and 0.6 or 1)
+      -- an unknown drop chance is ranked with a cautious default (and shown as "??")
+      row.chance = best.chance
+      row.chanceGuess = best.chanceGuess
+      if p and best.gain > 0 then
+        -- market: does the AH buy enough of it? What you would bring against what leaves the AH in a day
+        -- (without your scans showing that yet: half the stock); a big share would only push the price down
+        local perDay = max(dem.perDay or (q or 0) * 0.5, 5)
+        row.depth = 1 / (1 + 5 * best.gain / perDay)
+        row.value = p * best.gain * row.depth * F * best.conf * (psrc == "last" and 0.85 or 1)
       end
     end
     res[#res + 1] = row
@@ -698,9 +775,10 @@ function ns.Compute()
   -- "hot" items: the best few that actually sell; mobs dropping them get marked
   local ranked = {}
   for _, row in ipairs(res) do
-    if row.best and row.score and row.F >= 0.85 and ns.Liquid(row) then ranked[#ranked + 1] = row end
+    if row.best and row.value and row.F >= 0.85 and ns.Liquid(row) then ranked[#ranked + 1] = row end
   end
-  table.sort(ranked, function(a, b) return a.score > b.score end)
+  table.sort(ranked, function(a, b) return a.value > b.value end)
+  ns.ScoreRows(res)
   local hot = {}
   for i = 1, min(S.topN, #ranked) do hot[ranked[i].id] = i end
   for id in pairs(ns.db.pins) do

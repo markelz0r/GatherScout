@@ -46,11 +46,12 @@ def show_top(n=12):
     rows = [res[i] for i in range(1, len(res) + 1)]
     ok = [r for r in rows if r.best is not None]
     print('rows', len(rows), 'obtainable', len(ok))
-    ok.sort(key=lambda r: -(r.score or -1))
+    ok.sort(key=lambda r: -(r.value or -1))
     for r in ok[:n]:
-        print('  %-7s %-6s price=%-8s qty=%-5s F=%.2f %-14s diff=%-8s gph=%-10s where=%s' % (
+        print('  %-7s %-6s price=%-8s qty=%-5s F=%.2f %-14s diff=%-8s score=%-4s gain=%-6s where=%s' % (
             r.id, r.m.c, int(r.price) if r.price else '-', r.qty, r.F, strip(r.dem.label),
-            strip(ns.DiffLabel(r.best.mult)), strip(ns.Money(r.gph)) if r.gph else '-', strip(ns.WhereText(r.best))))
+            strip(ns.DiffLabel(r.best.mult)), r.scout if r.scout is not None else '-',
+            '%.1f' % r.best.gain if r.best.gain else '-', strip(ns.WhereText(r.best))))
 
 print('== before any scan')
 show_top(6)

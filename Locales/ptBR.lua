@@ -8,7 +8,6 @@ L["%d h ago"] = "há %d h"
 L["%d min ago"] = "há %d min"
 L["%m/%d"] = "%d/%m"
 L["%m/%d/%Y"] = "%d/%m/%Y"
-L["%s /h"] = "%s /h"
 L["%s pcs"] = "%s un."
 L["? means the place is approximate: the database has no nodes"] = "? — local aproximado: não há pontos de coleta no banco de dados"
 L["? means the zone is known only from your own loot"] = "? — zona conhecida só pelo seu próprio saque"
@@ -20,7 +19,6 @@ L["Any beasts of level %s in this zone"] = "Qualquer fera de nível %s nesta zon
 L["Any humanoids"] = "Qualquer humanoide"
 L["Any humanoids of level %s in this zone"] = "Qualquer humanoide de nível %s nesta zona"
 L["Any mobs"] = "Toda criatura"
-L["Approximate income per hour"] = "Ganho aproximado por hora"
 L["At target portrait"] = "No retrato do alvo"
 L["auction data for %s cleared."] = "dados de leilão de %s apagados."
 L["Auction house demand"] = "Demanda na Casa de Leilões"
@@ -181,7 +179,6 @@ L["Pinned on the map"] = "Fixados no mapa"
 L["price"] = "preço"
 L["Price"] = "Preço"
 L["Price (market)"] = "Preço (mercado)"
-L["Price x how much you get per hour x demand / difficulty. A rough estimate to compare rows with each other, not an exact sum. The list is sorted by it by default. Click to sort."] = "Preço x quanto você obtém por hora x demanda / dificuldade. Uma estimativa grosseira para comparar as linhas entre si, não uma soma exata. Por padrão a lista é ordenada por ela. Clique para ordenar."
 L["Price: %s      On AH: %s      Demand: %s"] = "Preço: %s      No leilão: %s      Demanda: %s"
 L["Quick scan %d/%d"] = "Varredura rápida %d/%d"
 L["Quick scan of materials"] = "Varredura rápida"
@@ -235,9 +232,6 @@ L["World drop: any mobs of level %s in this zone"] = "Saque mundial: qualquer cr
 L["player statistics"] = "estatísticas de jogadores"
 L["You can't get it right now: level, skill or profession. Turn on “%s” to see everything."] = "Você não consegue obter agora: nível, perícia ou profissão. Ative “%s” para ver tudo."
 L["~ means the first mob's chance is unknown; the median of the zone's mobs is shown"] = "~ significa que a chance da primeira criatura é desconhecida; mostra-se a mediana das criaturas da zona"
-L["~Income"] = "~Ganho"
-L["~income/h"] = "~ganho/h"
-L["~Income: %s /h"] = "~Ganho: %s /h"
 L["…and %d more"] = "…e mais %d"
 
 
@@ -277,3 +271,13 @@ L["%d more places — hover"] = { "mais %d lugar — passe o mouse", "mais %d lu
 L["%d more places, less convenient for you"] = { "Mais %d lugar, menos conveniente para você", "Mais %d lugares, menos convenientes para você" }
 L["another addon, %d days"] = { "outro addon, %d dia", "outro addon, %d dias" }
 L["History source: your scans, %d days"] = { "Fonte do histórico: suas varreduras, %d dia", "Fonte do histórico: suas varreduras, %d dias" }
+
+-- ScoutScore
+L["How good it is for you to earn with right now, 0–100, against everything else in the list. It weighs the price, how easy it is for you to get (mobs below your level are easy, above you hard; elites, enemy territory, skill), the drop chance, demand and whether the AH buys enough of it; guesses count less. 50 = as good as the 10th best item, 75 = three times better. The list is sorted by it by default. Click to sort."] = "O quanto isto é bom para você ganhar ouro agora, 0–100, comparado com todo o resto da lista. Considera o preço, a facilidade de obter (mobs abaixo do seu nível são fáceis, acima, difíceis; elites, território inimigo, perícia), a chance de saque, a demanda e se o leilão compra o suficiente; estimativas contam menos. 50 = tão bom quanto o 10º melhor item, 75 = três vezes melhor. A lista é ordenada por isso por padrão. Clique para ordenar."
+L["few buyers"] = "poucos compradores"
+L["partly a guess"] = "em parte estimado"
+L["excellent"] = "excelente"
+L["good"] = "bom"
+L["fair"] = "razoável"
+L["weak"] = "fraco"
+L["poor"] = "não compensa"

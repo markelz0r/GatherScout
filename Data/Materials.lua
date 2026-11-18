@@ -7,7 +7,8 @@
 local _, ns = ...
 local L = ns.L
 
--- uph = units (or, for d* categories, kills) per hour at difficulty 1.0
+-- uph = base amount per hour at difficulty 1.0 (for d* categories: kills): only a weight between categories
+-- for ScoutScore, not a forecast
 ns.CATS = {
   herb    = { label = L["Herbs"],     prof = "herb", uph = 60, order = 1 },
   ore     = { label = L["Ore"],       prof = "mine", uph = 40, order = 2 },

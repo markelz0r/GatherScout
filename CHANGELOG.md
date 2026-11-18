@@ -28,6 +28,11 @@
   wool, copper) used to show "average". Until your scans span a few hours it says "few scans" in grey
   instead of a confident "average"; the item card shows the days of stock. The price change (+25%) moved
   from the Demand column to the Price column, where it belongs.
+- ScoutScore (0–100, colored) replaces "~income/h": how good an item is for you to earn with right now
+  against everything else in the list. It weighs the price, how easy it is for you to get (mobs below your
+  level count as easy, above you as hard), the drop chance, demand and whether the AH buys enough of it.
+  The gold-per-hour figure looked exact but was not. The column now sorts by what it shows (it used to sort
+  by a hidden rating), and "Best place" is the most worthwhile place for you, not just the easiest one.
 
 ---
 
@@ -59,6 +64,11 @@
   Пока твои сканы не охватили несколько часов, вместо уверенного «средний» серым написано «мало сканов»;
   в карточке предмета видно, на сколько дней хватит запаса. Изменение цены (+25%) переехало из колонки
   «Спрос» в колонку «Цена».
+- ScoutScore (0–100, с цветом) вместо «~доход/ч»: насколько предмет сейчас выгоден тебе для заработка по
+  сравнению со всем остальным в списке. Учитывает цену, насколько легко тебе его добыть (мобы ниже твоего
+  уровня — легко, выше — тяжело), шанс дропа, спрос и берёт ли аукцион столько. Золото в час выглядело
+  точной цифрой, но ею не было. Колонка теперь сортируется по тому, что показывает (раньше — по скрытому
+  рейтингу), а «Где лучше всего» — самое выгодное для тебя место, а не просто самое лёгкое.
 
 # 1.2.0
 

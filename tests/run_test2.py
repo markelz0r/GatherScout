@@ -64,10 +64,10 @@ res = ns.Compute()
 rows = [res[i] for i in range(1, len(res) + 1)]
 dr = [r for r in rows if r.m.drop]
 print('rows', len(rows), 'drop rows', len(dr))
-for r in sorted(dr, key=lambda r: -(r.score or 0)):
-    print('  drop %-6s %-7s price=%s chance=%s guess=%s where=%s gph=%s' % (
+for r in sorted(dr, key=lambda r: -(r.value or 0)):
+    print('  drop %-6s %-7s price=%s chance=%s guess=%s where=%s score=%s gain=%s' % (
         r.id, r.m.c, strip(ns.Money(r.price)), r.chance, r.chanceGuess, strip(ns.WhereText(r.best, r.id)) if r.best else None,
-        strip(ns.Money(r.gph)) if r.gph else None))
+        r.scout, '%.2f' % r.best.gain if r.best else None))
 
 print('== mob tooltip: a Giant Egg dropper')
 npc = drops[12207].n[1]
@@ -100,6 +100,26 @@ search = L.eval('GatherScoutSearch')
 search._text = 'item1220'
 search._scripts.OnTextChanged(search)
 print('  search applied without errors; frame count label:', strip(L.eval('GatherScoutFrame.count._text')))
+search._text = ''
+search._scripts.OnTextChanged(search)
+
+print('== sorting by ScoutScore')
+ns.S.minQty = 0  # the test AH has only a few units of each item: show every row
+ns.Invalidate()
+for desc in (True, False):
+    ns.S.sortKey, ns.S.sortDesc = 'score', desc
+    ns.UI_Refresh()
+    view = ns.UI_View()
+    vals = [view[i].value if view[i].value is not None else (-1 if view[i].best else -2) for i in range(1, len(view) + 1)]
+    scores = [view[i].scout for i in range(1, len(view) + 1) if view[i].scout is not None]
+    want = sorted(vals, reverse=desc)
+    if vals != want or scores != sorted(scores, reverse=desc):
+        sys.exit('FAIL: list not sorted by ScoutScore (desc=%s): %s' % (desc, scores[:20]))
+    print('  desc=%s: %d rows in order, scores %s ... %s' % (desc, len(vals), scores[:5], scores[-3:]))
+ns.S.sortKey, ns.S.sortDesc = 'score', True
+ns.UI_Refresh()
+ns.Card_Show(12207)
+print('  card stats:\n    ' + strip(card.stats._text).replace('\n', '\n    '))
 
 print('== world map')
 ns.Map_Show(12207)

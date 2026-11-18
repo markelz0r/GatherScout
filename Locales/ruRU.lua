@@ -8,7 +8,6 @@ L["%d h ago"] = "%d ч назад"
 L["%d min ago"] = "%d мин назад"
 L["%m/%d"] = "%d.%m"
 L["%m/%d/%Y"] = "%d.%m.%Y"
-L["%s /h"] = "%s /ч"
 L["%s pcs"] = "%s шт"
 L["? means the place is approximate: the database has no nodes"] = "? — место примерное, точек сбора в базе нет"
 L["? means the zone is known only from your own loot"] = "? — зону знаем только по твоей добыче"
@@ -20,7 +19,6 @@ L["Any beasts of level %s in this zone"] = "Любые звери %s ур. в э
 L["Any humanoids"] = "Любые гуманоиды"
 L["Any humanoids of level %s in this zone"] = "Любые гуманоиды %s ур. в этой зоне"
 L["Any mobs"] = "Любые мобы"
-L["Approximate income per hour"] = "Примерный доход в час"
 L["At target portrait"] = "У портрета цели"
 L["auction data for %s cleared."] = "данные аукциона для %s очищены."
 L["Auction house demand"] = "Спрос на аукционе"
@@ -186,7 +184,6 @@ L["Pinned on the map"] = "Закреплённое на карте"
 L["price"] = "цена"
 L["Price"] = "Цена"
 L["Price (market)"] = "Цена (рынок)"
-L["Price x how much you get per hour x demand / difficulty. A rough estimate to compare rows with each other, not an exact sum. The list is sorted by it by default. Click to sort."] = "Цена x сколько добудешь за час x спрос / сложность. Грубая оценка: она нужна, чтобы сравнивать строки между собой, а не как точная сумма. Список по умолчанию отсортирован по ней. Клик — сортировка."
 L["Price: %s      On AH: %s      Demand: %s"] = "Цена: %s      На аукционе: %s      Спрос: %s"
 L["Quick scan %d/%d"] = "Быстрый скан %d/%d"
 L["Quick scan of materials"] = "Быстрый скан сырья"
@@ -240,9 +237,6 @@ L["World drop: any mobs of level %s in this zone"] = "Мировой дроп: �
 L["player statistics"] = "статистика игроков"
 L["You can't get it right now: level, skill or profession. Turn on “%s” to see everything."] = "Сейчас добыть не выйдет: уровень, навык или профессия. Включи «%s», чтобы увидеть всё."
 L["~ means the first mob's chance is unknown; the median of the zone's mobs is shown"] = "~ — шанс первого моба неизвестен, показана медиана по мобам зоны"
-L["~Income"] = "~Доход"
-L["~income/h"] = "~доход/ч"
-L["~Income: %s /h"] = "~Доход: %s /ч"
 L["…and %d more"] = "…и ещё %d"
 
 -- map button (continent markers)
@@ -282,3 +276,13 @@ L["%d more places — hover"] = { "ещё %d место — наведи", "ещ
 L["%d more places, less convenient for you"] = { "Ещё %d место, ниже по удобству для тебя", "Ещё %d места, ниже по удобству для тебя", "Ещё %d мест, ниже по удобству для тебя" }
 L["another addon, %d days"] = { "другой аддон %d дн.", "другой аддон %d дн.", "другой аддон %d дн." }
 L["History source: your scans, %d days"] = { "Источник истории: твои сканы %d дн.", "Источник истории: твои сканы %d дн.", "Источник истории: твои сканы %d дн." }
+
+-- ScoutScore
+L["How good it is for you to earn with right now, 0–100, against everything else in the list. It weighs the price, how easy it is for you to get (mobs below your level are easy, above you hard; elites, enemy territory, skill), the drop chance, demand and whether the AH buys enough of it; guesses count less. 50 = as good as the 10th best item, 75 = three times better. The list is sorted by it by default. Click to sort."] = "Насколько это сейчас выгодно тебе для заработка, 0–100, в сравнении со всем остальным в списке. Учитывает цену, насколько легко тебе это добыть (мобы ниже твоего уровня — легко, выше — тяжело; элита, вражеская территория, навык), шанс дропа, спрос и берёт ли аукцион столько; догадки весят меньше. 50 — как 10-й лучший предмет, 75 — втрое лучше. По умолчанию список отсортирован по нему. Клик — сортировка."
+L["few buyers"] = "мало покупают"
+L["partly a guess"] = "отчасти догадка"
+L["excellent"] = "отлично"
+L["good"] = "хорошо"
+L["fair"] = "средне"
+L["weak"] = "слабо"
+L["poor"] = "не стоит"
