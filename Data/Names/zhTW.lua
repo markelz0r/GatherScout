@@ -1,5 +1,6 @@
--- GENERATED from QuestieDB (Forever) l10n data by tools/gen_names.py. Do not edit by hand.
--- Mob and gathering-node names in zhTW, by ID; English names stay in Generated.lua.
+-- GENERATED from QuestieDB (Forever; Cata/Mists for fishing schools) l10n data by tools/gen_names.py.
+-- Do not edit by hand. Mob, gathering-node and fishing-school names in zhTW, by ID;
+-- English names stay in Generated.lua and Fishing.lua.
 if GetLocale() ~= "zhTW" then return end
 local _, ns = ...
 
@@ -2220,7 +2221,7 @@ ns.GEN.npcL = {
   [277645] = "灰色狐狸",
 }
 
--- [node name as the game shows it] = English node name (key of ns.GEN.nodeInfo)
+-- [node or school name as the game shows it] = English name (key of ns.GEN.nodeInfo or ns.GEN.fishPools)
 ns.GEN.nodeL = {
   ["元素之水"] = "Patch of Elemental Water",
   ["冰蓋草"] = "Icecap",
@@ -2243,6 +2244,7 @@ ns.GEN.nodeL = {
   ["活根草"] = "Liferoot",
   ["火岩礦脈"] = "Incendicite Mineral Vein",
   ["火焰花"] = "Firebloom",
+  ["火鰭鯛魚群"] = "Firefin Snapper School",
   ["瑟銀礦脈"] = "Small Thorium Vein",
   ["皇血草"] = "Kingsblood",
   ["盲目草"] = "Blindweed",
@@ -2274,6 +2276,17 @@ ns.GEN.nodeL = {
   ["鬼魂菇"] = "Ghost Mushroom",
   ["魔皇草"] = "Mageroyal",
   ["黃金蔘"] = "Golden Sansam",
+  ["黑口魚群"] = "Oily Blackmouth School",
   ["黑蓮花"] = "Black Lotus",
   ["黑鐵礦床"] = "Dark Iron Deposit",
+  ["鼠尾魚群"] = "Sagefish School",
+}
+
+-- [English school name (key of ns.GEN.fishPools)] = the name the game shows
+ns.GEN.poolL = {
+  ["Firefin Snapper School"] = "稀疏火鰭鯛魚群",
+  ["Oily Blackmouth School"] = "小型黑口魚群",
+  ["Patch of Elemental Water"] = "元素之水",
+  ["Sagefish School"] = "小型鼠尾魚群",
+  ["School of Deviate Fish"] = "變異魚群",
 }

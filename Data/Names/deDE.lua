@@ -1,5 +1,6 @@
--- GENERATED from QuestieDB (Forever) l10n data by tools/gen_names.py. Do not edit by hand.
--- Mob and gathering-node names in deDE, by ID; English names stay in Generated.lua.
+-- GENERATED from QuestieDB (Forever; Cata/Mists for fishing schools) l10n data by tools/gen_names.py.
+-- Do not edit by hand. Mob, gathering-node and fishing-school names in deDE, by ID;
+-- English names stay in Generated.lua and Fishing.lua.
 if GetLocale() ~= "deDE" then return end
 local _, ns = ...
 
@@ -2267,7 +2268,7 @@ ns.GEN.npcL = {
   [277645] = "Grauer Fuchs",
 }
 
--- [node name as the game shows it] = English node name (key of ns.GEN.nodeInfo)
+-- [node or school name as the game shows it] = English name (key of ns.GEN.nodeInfo or ns.GEN.fishPools)
 ns.GEN.nodeL = {
   ["Arthas’ Tränen"] = "Arthas' Tears",
   ["Bergsilberweisling"] = "Mountain Silversage",
@@ -2282,6 +2283,10 @@ ns.GEN.nodeL = {
   ["Brühschlammbedecktes reiches Thoriumvorkommen"] = "Ooze Covered Rich Thorium Vein",
   ["Dunkeleisenablagerung"] = "Dark Iron Deposit",
   ["Echtsilberablagerung"] = "Truesilver Deposit",
+  ["Ein Schwarm Deviatfische"] = "School of Deviate Fish",
+  ["Ein Schwarm Feuerflossenschnapper"] = "Firefin Snapper School",
+  ["Ein Schwarm Weisenfische"] = "Sagefish School",
+  ["Ein Schwarm öliger Schwarzmaulfische"] = "Oily Blackmouth School",
   ["Eisenvorkommen"] = "Iron Deposit",
   ["Eiskappe"] = "Icecap",
   ["Erdwurzel"] = "Earthroot",
@@ -2311,10 +2316,20 @@ ns.GEN.nodeL = {
   ["Silberblatt"] = "Silverleaf",
   ["Silbervorkommen"] = "Silver Vein",
   ["Sonnengras"] = "Sungrass",
+  ["Stelle mit Elementarwasser"] = "Patch of Elemental Water",
   ["Traumblatt"] = "Dreamfoil",
   ["Wilddornrose"] = "Briarthorn",
   ["Wildstahlblume"] = "Wild Steelbloom",
   ["Winterbiss"] = "Wintersbite",
   ["Würgetang"] = "Stranglekelp",
   ["Zinnvorkommen"] = "Tin Vein",
+}
+
+-- [English school name (key of ns.GEN.fishPools)] = the name the game shows
+ns.GEN.poolL = {
+  ["Firefin Snapper School"] = "Ein Schwarm Feuerflossenschnapper",
+  ["Oily Blackmouth School"] = "Ein Schwarm öliger Schwarzmaulfische",
+  ["Patch of Elemental Water"] = "Stelle mit Elementarwasser",
+  ["Sagefish School"] = "Ein Schwarm Weisenfische",
+  ["School of Deviate Fish"] = "Ein Schwarm Deviatfische",
 }

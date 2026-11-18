@@ -1,5 +1,6 @@
--- GENERATED from QuestieDB (Forever) l10n data by tools/gen_names.py. Do not edit by hand.
--- Mob and gathering-node names in frFR, by ID; English names stay in Generated.lua.
+-- GENERATED from QuestieDB (Forever; Cata/Mists for fishing schools) l10n data by tools/gen_names.py.
+-- Do not edit by hand. Mob, gathering-node and fishing-school names in frFR, by ID;
+-- English names stay in Generated.lua and Fishing.lua.
 if GetLocale() ~= "frFR" then return end
 local _, ns = ...
 
@@ -2234,10 +2235,14 @@ ns.GEN.npcL = {
   [277645] = "Renard gris",
 }
 
--- [node name as the game shows it] = English node name (key of ns.GEN.nodeInfo)
+-- [node or school name as the game shows it] = English name (key of ns.GEN.nodeInfo or ns.GEN.fishPools)
 ns.GEN.nodeL = {
   ["Aciérite sauvage"] = "Wild Steelbloom",
   ["Aveuglette"] = "Blindweed",
+  ["Banc de bouches-noires huileux"] = "Oily Blackmouth School",
+  ["Banc de lutjans de nagefeu"] = "Firefin Snapper School",
+  ["Banc de poissons déviants"] = "School of Deviate Fish",
+  ["Banc de sagerelles"] = "Sagefish School",
   ["Calot de glace"] = "Icecap",
   ["Champignon fantôme"] = "Ghost Mushroom",
   ["Dorépine"] = "Goldthorn",
@@ -2275,6 +2280,7 @@ ns.GEN.nodeL = {
   ["Pacifique"] = "Peacebloom",
   ["Petit filon de thorium"] = "Small Thorium Vein",
   ["Pâlerette"] = "Fadeleaf",
+  ["Remous d'eau élémentaire"] = "Patch of Elemental Water",
   ["Riche filon de thorium"] = "Rich Thorium Vein",
   ["Riche filon de thorium couvert de limon"] = "Ooze Covered Rich Thorium Vein",
   ["Sang-royal"] = "Kingsblood",
@@ -2284,4 +2290,13 @@ ns.GEN.nodeL = {
   ["Terrestrine"] = "Earthroot",
   ["Tombeline"] = "Grave Moss",
   ["Vietérule"] = "Liferoot",
+}
+
+-- [English school name (key of ns.GEN.fishPools)] = the name the game shows
+ns.GEN.poolL = {
+  ["Firefin Snapper School"] = "Banc de lutjans de nagefeu",
+  ["Oily Blackmouth School"] = "Banc de bouches-noires huileux",
+  ["Patch of Elemental Water"] = "Remous d'eau élémentaire",
+  ["Sagefish School"] = "Banc de sagerelles",
+  ["School of Deviate Fish"] = "Banc de poissons déviants",
 }

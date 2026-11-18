@@ -1,5 +1,6 @@
--- GENERATED from QuestieDB (Forever) l10n data by tools/gen_names.py. Do not edit by hand.
--- Mob and gathering-node names in ruRU, by ID; English names stay in Generated.lua.
+-- GENERATED from QuestieDB (Forever; Cata/Mists for fishing schools) l10n data by tools/gen_names.py.
+-- Do not edit by hand. Mob, gathering-node and fishing-school names in ruRU, by ID;
+-- English names stay in Generated.lua and Fishing.lua.
 if GetLocale() ~= "ruRU" then return end
 local _, ns = ...
 
@@ -2244,7 +2245,7 @@ ns.GEN.npcL = {
   [277645] = "Серый лис",
 }
 
--- [node name as the game shows it] = English node name (key of ns.GEN.nodeInfo)
+-- [node or school name as the game shows it] = English name (key of ns.GEN.nodeInfo or ns.GEN.fishPools)
 ns.GEN.nodeL = {
   ["Ароматитовая жила"] = "Incendicite Mineral Vein",
   ["Бледнолист"] = "Fadeleaf",
@@ -2262,6 +2263,11 @@ ns.GEN.nodeL = {
   ["Индарилиевая жила"] = "Indurium Mineral Vein",
   ["Кадгаров ус"] = "Khadgar's Whisker",
   ["Королевская кровь"] = "Kingsblood",
+  ["Косяк загадочной рыбы"] = "School of Deviate Fish",
+  ["Косяк масляного черноротика"] = "Oily Blackmouth School",
+  ["Косяк огнеперого луциана"] = "Firefin Snapper School",
+  ["Косяк огнеперого снеппера"] = "Firefin Snapper School",
+  ["Косяк шалфокуня"] = "Sagefish School",
   ["Кровь Грома"] = "Gromsblood",
   ["Ледяной зев"] = "Icecap",
   ["Лиловый лотос"] = "Purple Lotus",
@@ -2293,6 +2299,16 @@ ns.GEN.nodeL = {
   ["Сребролист"] = "Silverleaf",
   ["Ториевая жила Хаккари"] = "Hakkari Thorium Vein",
   ["Удавник"] = "Stranglekelp",
+  ["Участок стихийной воды"] = "Patch of Elemental Water",
   ["Черный лотос"] = "Black Lotus",
   ["Чумоцвет"] = "Plaguebloom",
+}
+
+-- [English school name (key of ns.GEN.fishPools)] = the name the game shows
+ns.GEN.poolL = {
+  ["Firefin Snapper School"] = "Косяк огнеперого снеппера",
+  ["Oily Blackmouth School"] = "Косяк масляного черноротика",
+  ["Patch of Elemental Water"] = "Участок стихийной воды",
+  ["Sagefish School"] = "Косяк шалфокуня",
+  ["School of Deviate Fish"] = "Косяк загадочной рыбы",
 }

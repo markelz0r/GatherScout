@@ -2,7 +2,7 @@
 -- Keys are the English (enUS) texts, so a missing translation simply shows English.
 -- Each Locales/<locale>.lua fills ns.L only when the client runs in that language.
 -- Game names never go through here: items and zones come from the client (GetItemInfo, C_Map),
--- mobs and gathering nodes from Data/Names/<locale>.lua (generated from QuestieDB by ID).
+-- mobs, gathering nodes and fishing schools from Data/Names/<locale>.lua (generated from QuestieDB by ID).
 local _, ns = ...
 
 local LOCALE = GetLocale and GetLocale() or "enUS"

@@ -124,12 +124,22 @@ if len(L.eval('PINS')):
     print('  agg tooltip:', ' / '.join(strip(gl[i]) for i in range(1, len(gl) + 1)))
 
 print('== node tooltips')
-# Russian client: Russian names, plus an English one (always matched); other clients: English names
-NODES = (['Магороза', 'Медная жила', 'Мифриловые залежи', 'Copper Vein', 'Сундук'] if LOCALE == 'ruRU' else
+# Russian client: Russian names (fishing schools as the ruRU client shows them), plus an English one (always
+# matched); other clients: English names. Everything but the chest must get lines.
+NODES = (['Магороза', 'Медная жила', 'Мифриловые залежи', 'Косяк масляного черноротика', 'Косяк огнеперого снеппера',
+          'Copper Vein', 'Сундук'] if LOCALE == 'ruRU' else
          ['Mageroyal', 'Copper Vein', 'Mithril Deposit', 'Oily Blackmouth School', 'Chest'])
 for nm in NODES:
     lines = L.eval('FireObjectTooltip')(nm)
     print('  %s:' % nm, ' / '.join(strip(lines[i]) for i in range(1, len(lines) + 1)) or '(nothing)')
+    if not len(lines) and nm not in ('Сундук', 'Chest'):
+        sys.exit('FAIL: no tooltip lines for node %s' % nm)
+# map pins and the card name a school as the game does
+label = strip(ns.SchoolLabel('Oily Blackmouth School'))
+print('  school label:', label)
+want = {'ruRU': 'Косяк масляного черноротика', 'enUS': 'Oily Blackmouth School'}.get(LOCALE)
+if want and label != want:
+    sys.exit('FAIL: school label %s, want %s' % (label, want))
 print('== money:', strip(ns.Money(1234567)), '|', strip(ns.Money(98)), '|', strip(ns.Money(20598)))
 print('== lower:', ns.Lower('ЁЛКА Шерсть ABC'))
 flush()

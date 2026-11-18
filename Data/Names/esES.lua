@@ -1,5 +1,6 @@
--- GENERATED from QuestieDB (Forever) l10n data by tools/gen_names.py. Do not edit by hand.
--- Mob and gathering-node names in esES, by ID; English names stay in Generated.lua.
+-- GENERATED from QuestieDB (Forever; Cata/Mists for fishing schools) l10n data by tools/gen_names.py.
+-- Do not edit by hand. Mob, gathering-node and fishing-school names in esES, by ID;
+-- English names stay in Generated.lua and Fishing.lua.
 if GetLocale() ~= "esES" then return end
 local _, ns = ...
 
@@ -2229,10 +2230,14 @@ ns.GEN.npcL = {
   [277645] = "Zorro gris",
 }
 
--- [node name as the game shows it] = English node name (key of ns.GEN.nodeInfo)
+-- [node or school name as the game shows it] = English name (key of ns.GEN.nodeInfo or ns.GEN.fishPools)
 ns.GEN.nodeL = {
   ["Acérita salvaje"] = "Wild Steelbloom",
   ["Alga estranguladora"] = "Stranglekelp",
+  ["Banco de bocanegras grasos"] = "Oily Blackmouth School",
+  ["Banco de pargos de fuego"] = "Firefin Snapper School",
+  ["Banco de peces descarriados"] = "School of Deviate Fish",
+  ["Banco de sabiolas"] = "Sagefish School",
   ["Brezospina"] = "Briarthorn",
   ["Carolina"] = "Blindweed",
   ["Champiñón fantasma"] = "Ghost Mushroom",
@@ -2266,6 +2271,7 @@ ns.GEN.nodeL = {
   ["Loto cárdeno"] = "Purple Lotus",
   ["Loto negro"] = "Black Lotus",
   ["Lágrimas de Arthas"] = "Arthas' Tears",
+  ["Mancha de agua elemental"] = "Patch of Elemental Water",
   ["Marregal"] = "Mageroyal",
   ["Musgo de tumba"] = "Grave Moss",
   ["Pálida"] = "Fadeleaf",
@@ -2278,4 +2284,13 @@ ns.GEN.nodeL = {
   ["Vibrisa de Khadgar"] = "Khadgar's Whisker",
   ["Vidarraíz"] = "Liferoot",
   ["flor de peste"] = "Plaguebloom",
+}
+
+-- [English school name (key of ns.GEN.fishPools)] = the name the game shows
+ns.GEN.poolL = {
+  ["Firefin Snapper School"] = "Banco de pargos de fuego",
+  ["Oily Blackmouth School"] = "Banco de bocanegras grasos",
+  ["Patch of Elemental Water"] = "Mancha de agua elemental",
+  ["Sagefish School"] = "Banco de sabiolas",
+  ["School of Deviate Fish"] = "Banco de peces descarriados",
 }

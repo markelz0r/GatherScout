@@ -5,6 +5,8 @@
   Search ignores case for accented Latin letters and Cyrillic too.
 - Fishing: what you catch where (zones, coasts and lakes, fishing schools), the catch rate for your fishing
   skill including pole and lure bonuses, schools on the map.
+- Fishing schools get their tooltip lines in every client language; the map and the item card call a
+  school by the name the game shows.
 - Item card: "Where to farm" is one row per place in aligned columns (difficulty, mob, levels, chance,
   zone). A click opens the place's other mobs; the tooltip has the full mob list and all warnings; places
   that do not fit sit behind "N more places".
@@ -29,6 +31,8 @@
   клиента. Поиск не различает регистр и для букв с диакритикой, и для кириллицы.
 - Рыбалка: что где ловится (зоны, побережья и озёра, косяки рыбы), доля улова при твоём навыке с учётом
   удочки и наживки, косяки на карте.
+- Подсказка у косяков рыбы работает на любом языке клиента; карта и карточка предмета называют косяк так
+  же, как игра.
 - Карточка предмета: «Где добывать» — по строке на место, колонками (сложность, моб, уровни, шанс, зона).
   Клик раскрывает остальных мобов места; в подсказке весь список мобов и все предупреждения; что не
   влезло — за строкой «ещё N мест».

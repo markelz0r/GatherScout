@@ -246,7 +246,7 @@ local function nodeIndex()
   if nodeByName then return end
   nodeByName, itemsByNode = {}, {}
   for en in pairs(ns.GEN.nodeInfo or {}) do nodeByName[en] = en end
-  -- node names in the client's language (Data/Names/<locale>.lua, generated from QuestieDB by object ID)
+  -- node and fishing-school names in the client's language (Data/Names/<locale>.lua, from QuestieDB by object ID)
   for name, en in pairs(ns.GEN.nodeL or {}) do nodeByName[name] = en end
   for itemID, ni in pairs(ns.GEN.nodeItems) do
     for _, n in ipairs(ni.nodes or {}) do

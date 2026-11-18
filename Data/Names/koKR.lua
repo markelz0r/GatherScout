@@ -1,5 +1,6 @@
--- GENERATED from QuestieDB (Forever) l10n data by tools/gen_names.py. Do not edit by hand.
--- Mob and gathering-node names in koKR, by ID; English names stay in Generated.lua.
+-- GENERATED from QuestieDB (Forever; Cata/Mists for fishing schools) l10n data by tools/gen_names.py.
+-- Do not edit by hand. Mob, gathering-node and fishing-school names in koKR, by ID;
+-- English names stay in Generated.lua and Fishing.lua.
 if GetLocale() ~= "koKR" then return end
 local _, ns = ...
 
@@ -2236,7 +2237,7 @@ ns.GEN.npcL = {
   [277645] = "회색 여우",
 }
 
--- [node name as the game shows it] = English node name (key of ns.GEN.nodeInfo)
+-- [node or school name as the game shows it] = English name (key of ns.GEN.nodeInfo or ns.GEN.fishPools)
 ns.GEN.nodeL = {
   ["갈래물풀"] = "Stranglekelp",
   ["검은 연꽃"] = "Black Lotus",
@@ -2247,6 +2248,7 @@ ns.GEN.nodeL = {
   ["금 광맥"] = "Gold Vein",
   ["기름기 많은 아귀 떼"] = "Oily Blackmouth School",
   ["꿈풀"] = "Dreamfoil",
+  ["돌연변이 물고기 떼"] = "School of Deviate Fish",
   ["마법초"] = "Mageroyal",
   ["무덤이끼"] = "Grave Moss",
   ["미명초"] = "Fadeleaf",
@@ -2285,4 +2287,13 @@ ns.GEN.nodeL = {
   ["화염초"] = "Firebloom",
   ["황금 산삼"] = "Golden Sansam",
   ["황금가시"] = "Goldthorn",
+}
+
+-- [English school name (key of ns.GEN.fishPools)] = the name the game shows
+ns.GEN.poolL = {
+  ["Firefin Snapper School"] = "불지느러미퉁돔 떼",
+  ["Oily Blackmouth School"] = "기름기 많은 아귀 떼",
+  ["Patch of Elemental Water"] = "정기가 흐르는 물웅덩이",
+  ["Sagefish School"] = "총명어 떼",
+  ["School of Deviate Fish"] = "돌연변이 물고기 떼",
 }

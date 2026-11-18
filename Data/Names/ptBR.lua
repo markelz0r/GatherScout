@@ -1,5 +1,6 @@
--- GENERATED from QuestieDB (Forever) l10n data by tools/gen_names.py. Do not edit by hand.
--- Mob and gathering-node names in ptBR, by ID; English names stay in Generated.lua.
+-- GENERATED from QuestieDB (Forever; Cata/Mists for fishing schools) l10n data by tools/gen_names.py.
+-- Do not edit by hand. Mob, gathering-node and fishing-school names in ptBR, by ID;
+-- English names stay in Generated.lua and Fishing.lua.
 if GetLocale() ~= "ptBR" then return end
 local _, ns = ...
 
@@ -2205,11 +2206,15 @@ ns.GEN.npcL = {
   [277645] = "Raposa Cinzenta",
 }
 
--- [node name as the game shows it] = English node name (key of ns.GEN.nodeInfo)
+-- [node or school name as the game shows it] = English name (key of ns.GEN.nodeInfo or ns.GEN.fishPools)
 ns.GEN.nodeL = {
   ["Bigode-de-hadgar"] = "Khadgar's Whisker",
   ["Boquinha-do-inverno"] = "Wintersbite",
   ["Botão-da-paz"] = "Peacebloom",
+  ["Cardume de Bocaneras Oleosos"] = "Oily Blackmouth School",
+  ["Cardume de Pargos Pinafogos"] = "Firefin Snapper School",
+  ["Cardume de Peixes Anormais"] = "School of Deviate Fish",
+  ["Cardume de Sabichões"] = "Sagefish School",
   ["Chapéu-de-gelo"] = "Icecap",
   ["Cogumelo-fantasma"] = "Ghost Mushroom",
   ["Cravespinho"] = "Briarthorn",
@@ -2241,6 +2246,7 @@ ns.GEN.nodeL = {
   ["Some-folha"] = "Fadeleaf",
   ["Sonsona-dourada"] = "Golden Sansam",
   ["Sálvia-prata-da-montanha"] = "Mountain Silversage",
+  ["Trecho de Água Elemental"] = "Patch of Elemental Water",
   ["Veio de Cobre"] = "Copper Vein",
   ["Veio de Estanho"] = "Tin Vein",
   ["Veio de Indúrio"] = "Indurium Mineral Vein",
@@ -2254,4 +2260,13 @@ ns.GEN.nodeL = {
   ["Veio de Tório Escasso"] = "Small Thorium Vein",
   ["Veio de Tório Hakkari"] = "Hakkari Thorium Vein",
   ["Ácera-agreste"] = "Wild Steelbloom",
+}
+
+-- [English school name (key of ns.GEN.fishPools)] = the name the game shows
+ns.GEN.poolL = {
+  ["Firefin Snapper School"] = "Cardume de Pargos Pinafogos",
+  ["Oily Blackmouth School"] = "Cardume de Bocaneras Oleosos",
+  ["Patch of Elemental Water"] = "Trecho de Água Elemental",
+  ["Sagefish School"] = "Cardume de Sabichões",
+  ["School of Deviate Fish"] = "Cardume de Peixes Anormais",
 }

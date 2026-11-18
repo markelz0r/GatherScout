@@ -303,6 +303,20 @@ local nodeName = ns.GEN.nodeL and next(ns.GEN.nodeL) or "Silverleaf"
 tt = {}
 local okNode = ns.AddNodeLines(GameTooltip, nodeName)
 print("node tooltip for " .. tostring(nodeName) .. ": " .. tostring(okNode)); showTip("node")
+-- fishing schools: map and card show the name the game shows, and that name gets the tooltip lines
+do
+  local pools = {}
+  for pool in pairs(ns.GEN.fishPools or {}) do pools[#pools + 1] = pool end
+  table.sort(pools)
+  for _, pool in ipairs(pools) do
+    local label = ns.SchoolLabel(pool)
+    tt = {}
+    local ok = ns.AddNodeLines(GameTooltip, label)
+    print(string.format("school %s: %s -> tooltip %s (%d lines)", pool, plain(label), tostring(ok), #tt))
+    if not ok then error("no tooltip for the school " .. pool .. " shown as " .. label) end
+    if LOC ~= "enUS" and label == pool then error("no " .. LOC .. " name for the school " .. pool) end
+  end
+end
 -- slash help + list row tooltip
 SlashCmdList.GATHERSCOUT("help")
 SlashCmdList.GATHERSCOUT("demand")

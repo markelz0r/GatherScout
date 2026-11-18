@@ -1,5 +1,6 @@
--- GENERATED from QuestieDB (Forever) l10n data by tools/gen_names.py. Do not edit by hand.
--- Mob and gathering-node names in zhCN, by ID; English names stay in Generated.lua.
+-- GENERATED from QuestieDB (Forever; Cata/Mists for fishing schools) l10n data by tools/gen_names.py.
+-- Do not edit by hand. Mob, gathering-node and fishing-school names in zhCN, by ID;
+-- English names stay in Generated.lua and Fishing.lua.
 if GetLocale() ~= "zhCN" then return end
 local _, ns = ...
 
@@ -2225,11 +2226,13 @@ ns.GEN.npcL = {
   [277645] = "灰色狐狸",
 }
 
--- [node name as the game shows it] = English node name (key of ns.GEN.nodeInfo)
+-- [node or school name as the game shows it] = English name (key of ns.GEN.nodeInfo or ns.GEN.fishPools)
 ns.GEN.nodeL = {
+  ["元素之水"] = "Patch of Elemental Water",
   ["冬刺草"] = "Wintersbite",
   ["冰盖草"] = "Icecap",
   ["卡德加的胡须"] = "Khadgar's Whisker",
+  ["变异鱼群"] = "School of Deviate Fish",
   ["哈卡莱瑟银矿脉"] = "Hakkari Thorium Vein",
   ["地根草"] = "Earthroot",
   ["墓地苔"] = "Grave Moss",
@@ -2244,6 +2247,8 @@ ns.GEN.nodeL = {
   ["次级血石矿脉"] = "Lesser Bloodstone Deposit",
   ["活根草"] = "Liferoot",
   ["火焰花"] = "Firebloom",
+  ["火鳍鲷鱼群"] = "Firefin Snapper School",
+  ["火鳞鳝鱼群"] = "Firefin Snapper School",
   ["瑟银矿脉"] = "Small Thorium Vein",
   ["瘟疫花"] = "Plaguebloom",
   ["皇血草"] = "Kingsblood",
@@ -2272,6 +2277,17 @@ ns.GEN.nodeL = {
   ["阿尔萨斯之泪"] = "Arthas' Tears",
   ["魔皇草"] = "Mageroyal",
   ["黄金参"] = "Golden Sansam",
+  ["黑口鱼群"] = "Oily Blackmouth School",
   ["黑莲花"] = "Black Lotus",
   ["黑铁矿脉"] = "Dark Iron Deposit",
+  ["鼠尾鱼群"] = "Sagefish School",
+}
+
+-- [English school name (key of ns.GEN.fishPools)] = the name the game shows
+ns.GEN.poolL = {
+  ["Firefin Snapper School"] = "火鳍鲷鱼群",
+  ["Oily Blackmouth School"] = "黑口鱼群",
+  ["Patch of Elemental Water"] = "元素之水",
+  ["Sagefish School"] = "鼠尾鱼群",
+  ["School of Deviate Fish"] = "变异鱼群",
 }

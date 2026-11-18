@@ -61,10 +61,13 @@ end
 
 ns.ENEMY_COLOR = "|cffff9a50" -- same orange as the warnings
 
--- Fishing school shown by its main catch, whose name the client gives in its own language
--- (school object names are not translated in the data for most languages)
+-- Fishing school by the name the game shows (Data/Names/<locale>.lua; the English key on English clients).
+-- A school without a translated name is shown by its main catch, whose name the client gives in its own language.
 local schoolItem
 function ns.SchoolLabel(pool)
+  local name = ns.GEN.poolL and ns.GEN.poolL[pool]
+  if name then return name end
+  if ns.LOCALE == "enUS" then return pool end
   if not schoolItem then
     schoolItem = {}
     local best = {}
