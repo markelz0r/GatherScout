@@ -9,6 +9,7 @@ manual-changelog:
 ignore:
   - tools
   - tests
+  - media
   - dist
   - .github
   - .gitignore
