@@ -1,10 +1,18 @@
 """Reproduce the 'pins appear gradually' bug with a Blizzard-like AcquirePin (pool + new-pin mouse setup)."""
-import sys
+import sys, re
 from lupa import LuaRuntime
 sys.stdout.reconfigure(encoding='utf-8')
 ADDON, HARNESS = sys.argv[1], sys.argv[2]
+OPTS = sys.argv[3:]  # any order: "auctionator", a client locale (default ruRU; enUS, deDE, ...)
+LOCALE = next((a for a in OPTS if re.fullmatch(r'[a-z]{2}[A-Z]{2}', a)), 'ruRU')
+for a in OPTS:
+    if a != 'auctionator' and a != LOCALE:
+        sys.exit('unknown option: %s' % a)
 L = LuaRuntime(unpack_returned_tuples=True)
+L.execute('TEST_LOCALE = "%s"' % LOCALE)
 L.execute(open(HARNESS, encoding='utf-8').read())
+if 'auctionator' in OPTS:
+    L.execute('InstallAuctionator()')
 L.execute('''
 -- Blizzard-like pin pool: reuses released pins; only NEW click-enabled pins get the mouse setup,
 -- and SetPassThroughButtons fails like it can on new clients.
@@ -12,7 +20,7 @@ local pool, active = {}, {}
 local function newPin()
   local pin = CreateFrame("Frame")
   for k, v in pairs(GatherScoutMapPinMixin) do pin[k] = v end
-  pin.Texture = pin:CreateTexture(); pin.Border = pin:CreateTexture(); pin.Shadow = pin:CreateTexture()
+  pin.Texture = pin:CreateTexture(); pin.Edge = pin:CreateTexture(); pin.Shadow = pin:CreateTexture()
   pin._click = true                                   -- XML enableMouse="true"
   pin.IsMouseClickEnabled = function(self) return self._click end
   pin.SetMouseClickEnabled = function(self, v) self._click = v end
@@ -56,3 +64,7 @@ for i in range(5):           # open/close the map 5 times
     prov.RefreshAllData(prov)
     counts.append(L.eval('ActivePins()'))
 print('pins after each map open:', counts)
+if not counts[0] or len(set(counts)) != 1:
+    sys.exit('FAIL: pins must all appear on every map open')
+print('output language %s: %d texts checked' % (LOCALE, L.eval('CheckOutputLanguage()')))
+print('OK')

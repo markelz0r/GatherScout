@@ -1,10 +1,18 @@
 """World map: herb points off by default, mob points on, toggle button (LMB all / RMB nodes)."""
-import sys
+import sys, re
 from lupa import LuaRuntime
 sys.stdout.reconfigure(encoding='utf-8')
 ADDON, HARNESS = sys.argv[1], sys.argv[2]
+OPTS = sys.argv[3:]  # any order: "auctionator", a client locale (default ruRU; enUS, deDE, ...)
+LOCALE = next((a for a in OPTS if re.fullmatch(r'[a-z]{2}[A-Z]{2}', a)), 'ruRU')
+for a in OPTS:
+    if a != 'auctionator' and a != LOCALE:
+        sys.exit('unknown option: %s' % a)
 L = LuaRuntime(unpack_returned_tuples=True)
+L.execute('TEST_LOCALE = "%s"' % LOCALE)
 L.execute(open(HARNESS, encoding='utf-8').read())
+if 'auctionator' in OPTS:
+    L.execute('InstallAuctionator()')
 ns = L.eval('{}')
 files = [l.strip() for l in open(ADDON + '/GatherScout.toc', encoding='utf-8') if l.strip() and not l.startswith('#')]
 loader = L.eval('function(src, name, ns) local f = assert(load(src, "@" .. name)); f("GatherScout", ns) end')
@@ -45,4 +53,5 @@ btn._scripts.OnClick(btn, 'LeftButton')
 print('after LMB again -> mapShow', ns.S.mapShow, '| Tanaris:', pins_on(1446))
 L.eval('SlashCmdList.GATHERSCOUT')('nodes')
 print('/gs nodes -> mapNodes', ns.S.mapNodes)
+print('output language %s: %d texts checked' % (LOCALE, L.eval('CheckOutputLanguage()')))
 print('OK')

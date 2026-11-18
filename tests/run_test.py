@@ -1,14 +1,18 @@
-"""Smoke test GatherScout in an emulated WoW API. Usage: python -I run_test.py <addon dir> <harness.lua> [auctionator]"""
+"""Smoke test GatherScout in an emulated WoW API. Usage: python -I run_test.py <addon dir> <harness.lua> [auctionator] [locale]"""
 import sys, re
 from lupa import LuaRuntime
 sys.stdout.reconfigure(encoding='utf-8')
 
 ADDON, HARNESS = sys.argv[1], sys.argv[2]
-WITH_AUCTIONATOR = len(sys.argv) > 3
-
+OPTS = sys.argv[3:]  # any order: "auctionator", a client locale (default ruRU; enUS, deDE, ...)
+LOCALE = next((a for a in OPTS if re.fullmatch(r'[a-z]{2}[A-Z]{2}', a)), 'ruRU')
+for a in OPTS:
+    if a != 'auctionator' and a != LOCALE:
+        sys.exit('unknown option: %s' % a)
 L = LuaRuntime(unpack_returned_tuples=True)
+L.execute('TEST_LOCALE = "%s"' % LOCALE)
 L.execute(open(HARNESS, encoding='utf-8').read())
-if WITH_AUCTIONATOR:
+if 'auctionator' in OPTS:
     L.execute('InstallAuctionator()')
 
 def strip(s):
@@ -113,7 +117,7 @@ F, d = ns.Demand(13464)
 print('  Golden Sansam demand with/without Auctionator history: refP=', d.refP, 'refQ=', d.refQ, 'trend=', d.trend, 'extDays=', d.extDays)
 
 print('== humanoid lvl 40 (cloth rule)')
-L.execute('MOB_GUID = "Creature-0-1-2-3-999999-1"; MOB_TYPE = "Гуманоид"; MOB_LEVEL = 40; PLAYER_LEVEL = 40')
+L.execute('MOB_GUID = "Creature-0-1-2-3-999999-1"; MOB_TYPE = CT.humanoid; MOB_LEVEL = 40; PLAYER_LEVEL = 40')
 ns.Invalidate(); tick(1)
 lst, level, *_ = ns.UnitMaterials('mouseover')
 print('  ', [(lst[i].id, lst[i].why, lst[i].hot) for i in range(1, len(lst) + 1)] if lst else lst)
@@ -140,4 +144,5 @@ L.eval('SlashCmdList.GATHERSCOUT')('off')
 L.eval('SlashCmdList.GATHERSCOUT')('on')
 tick(2)
 flush()
+print('output language %s: %d texts checked' % (LOCALE, L.eval('CheckOutputLanguage()')))
 print('ALL OK')

@@ -3,8 +3,16 @@ import sys, re
 from lupa import LuaRuntime
 sys.stdout.reconfigure(encoding='utf-8')
 ADDON, HARNESS = sys.argv[1], sys.argv[2]
+OPTS = sys.argv[3:]  # any order: "auctionator", a client locale (default ruRU; enUS, deDE, ...)
+LOCALE = next((a for a in OPTS if re.fullmatch(r'[a-z]{2}[A-Z]{2}', a)), 'ruRU')
+for a in OPTS:
+    if a != 'auctionator' and a != LOCALE:
+        sys.exit('unknown option: %s' % a)
 L = LuaRuntime(unpack_returned_tuples=True)
+L.execute('TEST_LOCALE = "%s"' % LOCALE)
 L.execute(open(HARNESS, encoding='utf-8').read())
+if 'auctionator' in OPTS:
+    L.execute('InstallAuctionator()')
 # record SetPoint calls on frames
 L.execute('''
 local mt = getmetatable(CreateFrame("Frame"))
@@ -35,4 +43,5 @@ pt = L.eval('TEST_PLATE.GatherScoutIcon._point')
 print('after reset:', [pt[i] if not hasattr(pt[i], 'keys') else 'frame' for i in range(1, 6)])
 for line in L.eval('LOGS()').values():
     print('  [chat]', re.sub(r'\|c[0-9a-fA-F]{8}|\|r', '', str(line)))
+print('output language %s: %d texts checked' % (LOCALE, L.eval('CheckOutputLanguage()')))
 print('OK')

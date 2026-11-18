@@ -1,12 +1,18 @@
 -- Minimal WoW API emulation to smoke-test GatherScout outside the game (Lua 5.4 via lupa).
+-- Client language: set TEST_LOCALE ("enUS", "ruRU", ...) before running this file; Russian by default.
 local unpack = table.unpack
 _G.unpack = _G.unpack or table.unpack   -- WoW's Lua 5.1 global
 math.log10 = math.log10 or function(x) return math.log(x, 10) end
 math.atan2 = math.atan2 or math.atan
 loadstring = loadstring or load
+TEST_LOCALE = TEST_LOCALE or "ruRU"
+
+-- Everything the addon shows (chat, tooltips, font strings), kept for CheckOutputLanguage()
+local OUTPUT = {}
+local function shown(t) if t ~= nil then OUTPUT[#OUTPUT + 1] = tostring(t) end end
 
 local LOG = {}
-local function log(...) local t = {} for i = 1, select("#", ...) do t[#t + 1] = tostring((select(i, ...))) end LOG[#LOG + 1] = table.concat(t, " ") end
+local function log(...) local t = {} for i = 1, select("#", ...) do t[#t + 1] = tostring((select(i, ...))) end LOG[#LOG + 1] = table.concat(t, " "); shown(LOG[#LOG]) end
 print = function(...) log(...) end
 
 local clock = 0
@@ -57,7 +63,7 @@ function methods:GetStringHeight()
   for _ in (self._text or ""):gmatch("\n") do n = n + 1 end
   return n * 14 + (n - 1) * 4
 end
-function methods:SetText(t) self._text = t end
+function methods:SetText(t) self._text = t; shown(t) end
 function methods:GetText() return self._text end
 function methods:Show() local was = self._shown; self._shown = true; if not was and self._scripts.OnShow then self._scripts.OnShow(self) end end
 function methods:Hide() local was = self._shown; self._shown = false; if was and self._scripts.OnHide then self._scripts.OnHide(self) end end
@@ -74,8 +80,8 @@ function methods:GetParent() return self._parent end
 function methods:SetParent(p) self._parent = p end
 function methods:GetCenter() return 100, 100 end
 function methods:GetEffectiveScale() return 1 end
-function methods:AddLine(t) self._lines[#self._lines + 1] = tostring(t) end
-function methods:AddDoubleLine(a, b) self._lines[#self._lines + 1] = tostring(a) .. "  ||  " .. tostring(b) end
+function methods:AddLine(t) self._lines[#self._lines + 1] = tostring(t); shown(t) end
+function methods:AddDoubleLine(a, b) self._lines[#self._lines + 1] = tostring(a) .. "  ||  " .. tostring(b); shown(a); shown(b) end
 function methods:SetOwner() self._lines = {} end
 function methods:SetItemByID(id) self._lines[#self._lines + 1] = "[item " .. id .. "]" end
 
@@ -92,7 +98,30 @@ TargetFrame = CreateFrame("Frame", "TargetFrame")
 Minimap = CreateFrame("Frame", "Minimap"); Minimap._w = 140
 BackdropTemplateMixin = {}
 ITEM_QUALITY_COLORS = { [1] = { hex = "|cffffffff" }, [2] = { hex = "|cff1eff00" } }
-GetLocale = function() return "ruRU" end
+GetLocale = function() return TEST_LOCALE end
+-- names the client itself gives in its language (creature types, skill lines)
+local CLIENT = {
+  ruRU = { beast = "Животное", humanoid = "Гуманоид", professions = "Профессии", herbalism = "Травничество",
+    skinning = "Снятие шкур", cooking = "Кулинария" },
+  enUS = { beast = "Beast", humanoid = "Humanoid", professions = "Professions", herbalism = "Herbalism",
+    skinning = "Skinning", cooking = "Cooking" },
+}
+CT = CLIENT[TEST_LOCALE] or CLIENT.enUS
+
+-- Fails when a non-Russian client would see Cyrillic anywhere in what the addon showed so far.
+-- Returns how many texts were checked.
+function CheckOutputLanguage()
+  if TEST_LOCALE == "ruRU" then return #OUTPUT end
+  local bad = {}
+  for _, s in ipairs(OUTPUT) do
+    if s:find("[\208-\211][\128-\191]") then bad[#bad + 1] = s end
+  end
+  if #bad > 0 then
+    error(string.format("%d Cyrillic texts in %s output, e.g.: %s", #bad, TEST_LOCALE,
+      table.concat(bad, " // ", 1, math.min(5, #bad))), 0)
+  end
+  return #OUTPUT
+end
 GetCursorPosition = function() return 0, 0 end
 IsModifiedClick = function() return false end
 ChatEdit_InsertLink = function() end
@@ -133,14 +162,14 @@ UnitGUID = function(u) if u == "player" then return "Player-1-1" end return MOB_
 UnitIsPlayer = function() return false end
 UnitCanAttack = function() return true end
 UnitExists = function() return true end
-UnitCreatureType = function() return MOB_TYPE or "Животное" end
+UnitCreatureType = function() return MOB_TYPE or CT.beast end
 C_SkillInfo = {
   GetNumSkillLines = function() return 4 end,
   GetSkillLineInfo = function(i)
-    return ({ { name = "Профессии", isHeader = true },
-      { name = "Травничество", skillID = 182, rank = 190 },
-      { name = "Снятие шкур", skillID = 393, rank = SKIN_RANK or 200 },
-      { name = "Кулинария", skillID = 185, rank = 50 } })[i]
+    return ({ { name = CT.professions, isHeader = true },
+      { name = CT.herbalism, skillID = 182, rank = 190 },
+      { name = CT.skinning, skillID = 393, rank = SKIN_RANK or 200 },
+      { name = CT.cooking, skillID = 185, rank = 50 } })[i]
   end,
   ExpandSkillHeader = function() end,
 }

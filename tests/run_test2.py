@@ -1,11 +1,17 @@
-"""v2 smoke test: full scan with drops, chances, mob tooltip, card, world map. Usage: run_test2.py <addon> <harness> [auctionator]"""
+"""v2 smoke test: full scan with drops, chances, mob tooltip, card, world map. Usage: run_test2.py <addon> <harness> [auctionator] [locale]"""
 import sys, re
 from lupa import LuaRuntime
 sys.stdout.reconfigure(encoding='utf-8')
 ADDON, HARNESS = sys.argv[1], sys.argv[2]
+OPTS = sys.argv[3:]  # any order: "auctionator", a client locale (default ruRU; enUS, deDE, ...)
+LOCALE = next((a for a in OPTS if re.fullmatch(r'[a-z]{2}[A-Z]{2}', a)), 'ruRU')
+for a in OPTS:
+    if a != 'auctionator' and a != LOCALE:
+        sys.exit('unknown option: %s' % a)
 L = LuaRuntime(unpack_returned_tuples=True)
+L.execute('TEST_LOCALE = "%s"' % LOCALE)
 L.execute(open(HARNESS, encoding='utf-8').read())
-if len(sys.argv) > 3:
+if 'auctionator' in OPTS:
     L.execute('InstallAuctionator()')
 
 
@@ -67,7 +73,7 @@ print('== mob tooltip: a Giant Egg dropper')
 npc = drops[12207].n[1]
 n = ns.GEN.npcs[npc]
 print('  npc', npc, n[6], n[7], 'lvl', n[1], n[2])
-L.execute('MOB_GUID = "Creature-0-1-2-3-%d-1"; MOB_TYPE = "Животное"; MOB_LEVEL = %d' % (npc, n[1]))
+L.execute('MOB_GUID = "Creature-0-1-2-3-%d-1"; MOB_TYPE = CT.beast; MOB_LEVEL = %d' % (npc, n[1]))
 ns.db.pins[12207] = True
 ns.Invalidate(); tick(2)
 lines = L.eval('FireUnitTooltip')(L.eval('MOB_GUID'))
@@ -118,10 +124,14 @@ if len(L.eval('PINS')):
     print('  agg tooltip:', ' / '.join(strip(gl[i]) for i in range(1, len(gl) + 1)))
 
 print('== node tooltips')
-for nm in ['Магороза', 'Медная жила', 'Мифриловые залежи', 'Copper Vein', 'Сундук']:
+# Russian client: Russian names, plus an English one (always matched); other clients: English names
+NODES = (['Магороза', 'Медная жила', 'Мифриловые залежи', 'Copper Vein', 'Сундук'] if LOCALE == 'ruRU' else
+         ['Mageroyal', 'Copper Vein', 'Mithril Deposit', 'Oily Blackmouth School', 'Chest'])
+for nm in NODES:
     lines = L.eval('FireObjectTooltip')(nm)
     print('  %s:' % nm, ' / '.join(strip(lines[i]) for i in range(1, len(lines) + 1)) or '(nothing)')
 print('== money:', strip(ns.Money(1234567)), '|', strip(ns.Money(98)), '|', strip(ns.Money(20598)))
 print('== lower:', ns.Lower('ЁЛКА Шерсть ABC'))
 flush()
+print('output language %s: %d texts checked' % (LOCALE, L.eval('CheckOutputLanguage()')))
 print('ALL OK')
