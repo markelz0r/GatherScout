@@ -290,9 +290,21 @@ for iid in [8167, 4461, 8165, 6470, 6471, 15416, 15420, 5784, 5785, 14256, 24882
     nd = field('Item', iid, 2) or []
     MOB_ITEMS.setdefault(iid, set()).update(n for n in nd if n in NPC)
 
+def killable(S):
+    """Hostile mobs and neutral (yellow) ones. Questie marks a neutral mob as friendly to "AH", the same as
+    neutral town folk, so among those skip anyone with an NPC service flag (vendor, quest giver, trainer...),
+    the friendly-to-all faction template 35 and elites (Booty Bay / Gadgetzan / Everlook bruisers and the like)."""
+    f = txt(S.get(13))
+    if not f:
+        return True
+    if f != 'AH':                   # friendly to one faction: guards and town folk
+        return False
+    return not S.get(15) and S.get(12) != 35 and (S.get(6) or 0) not in (1, 2)
+
+
 # name-based families (skinning specials with no drop data)
 def find(pred):
-    return {nid for nid, S in NPC.items() if not S.get(13) and pred(npc_name(nid) or '', S)}
+    return {nid for nid, S in NPC.items() if killable(S) and pred(npc_name(nid) or '', S)}
 
 def lvl(S):
     return S.get(4) or 0
@@ -340,7 +352,7 @@ def spawns_for(nid):
 
 def usable_npc(nid):
     S = NPC.get(nid)
-    if not S or S.get(13):          # friendly to a faction
+    if not S or not killable(S):    # friendly to a faction (neutral mobs stay)
         return False
     if (S.get(6) or 0) == 3:        # raid/world boss
         return False
@@ -429,10 +441,24 @@ if CM:
                 for u, c in spawns_for(nid).items():
                     a['z'][u] += c
 
+    def cm_world(a):
+        lv = sorted(a['lv'])
+        lo, hi = int(lv[int(len(lv) * 0.1)]), int(round(lv[int(len(lv) * 0.9)]))
+        return (max(1, lo), max(lo, hi), len(lv)), dict(sorted(a['z'].items(), key=lambda x: -x[1])[:12])
+
     # drop what cannot be sold; give Questie world drops a chance; add drops Questie does not list
     for iid in list(DROPS):
         if not tradeable(iid):
             del DROPS[iid]
+    # world drops (greens, scrolls) that Questie ties to a handful of mobs while CMaNGOS has them on hundreds
+    widened = 0
+    for iid, d in DROPS.items():
+        a = CM_AGG.get(iid)
+        if 'npcs' in d and a and a['n'] is None and len(a['lv']) >= 3 * len(d['npcs']):
+            w, z = cm_world(a)
+            DROPS[iid] = {'cls': d['cls'], 'world': w, 'zones': z, 'chance': None}
+            widened += 1
+    print('CMaNGOS: mob lists turned into world drops', widened)
     added = 0
     for iid, a in CM_AGG.items():
         if iid in DROPS or iid in SKIP or iid not in item_ids or not tradeable(iid):
@@ -444,10 +470,8 @@ if CM:
         if a['n'] is not None:
             DROPS[iid] = {'cls': DROP_CLASS[cls], 'npcs': sorted(n for n, _ in a['n'])}
         else:
-            lv = sorted(a['lv'])
-            lo, hi = int(lv[int(len(lv) * 0.1)]), int(round(lv[int(len(lv) * 0.9)]))
-            DROPS[iid] = {'cls': DROP_CLASS[cls], 'world': (max(1, lo), max(lo, hi), len(lv)),
-                          'zones': dict(sorted(a['z'].items(), key=lambda x: -x[1])[:12]), 'chance': None}
+            w, z = cm_world(a)
+            DROPS[iid] = {'cls': DROP_CLASS[cls], 'world': w, 'zones': z, 'chance': None}
         added += 1
     for iid, d in DROPS.items():
         if 'world' in d and not d['chance'] and iid in CM_AGG:
