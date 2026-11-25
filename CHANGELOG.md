@@ -1,3 +1,27 @@
+# 1.4.0
+
+- Only the full scan is left: the quick scan searched the materials one by one and took minutes. The button
+  on the AH and `/gs scan` run the full scan; `/gs quick` and the Shift+click are gone.
+- Auctionator: GatherScout asks Auctionator to run the full scan, so both addons get the data. The server
+  allows one full scan per 15 minutes and Auctionator reads only the scans it started, so a scan of
+  GatherScout's own used to leave Auctionator without data for 15 minutes. Full scans Auctionator starts
+  itself are reused as before. GatherScout no longer searches the AH at all, so it never disturbs
+  Auctionator's buying and selling tabs.
+- When the server sends no full scan, the data of the last scan stays and the status says when the next
+  one is possible.
+
+---
+
+- Остался только полный скан: быстрый перебирал материалы по одному и шёл минутами. Кнопка у аукциона и
+  `/gs scan` запускают полный скан; `/gs quick` и Shift+клик убраны.
+- Auctionator: GatherScout просит полный скан у Auctionator, и данные получают оба аддона. Сервер даёт
+  один полный скан в 15 минут, а Auctionator читает только те сканы, что запустил сам, поэтому собственный
+  скан GatherScout раньше оставлял Auctionator без данных на 15 минут. Сканы, которые Auctionator
+  запускает сам, используются как и раньше. GatherScout больше совсем не делает поисков по аукциону и
+  не мешает вкладкам покупки и продажи Auctionator.
+- Если сервер не прислал полный скан, остаются данные прошлого скана, а в статусе видно, когда можно
+  следующий.
+
 # 1.3.0
 
 - Interface in English, Russian, German, French, Spanish (EU and Latin America), Portuguese, Korean and

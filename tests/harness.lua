@@ -130,8 +130,8 @@ IsInInstance = function() return false end
 GetRealmName = function() return "TestRealm" end
 
 ---------------------------------------------------------------- timers & events
-local timers = {}
-C_Timer = { After = function(s, fn) timers[#timers + 1] = fn end }
+local timers = {}  -- { due = clock time, fn }; a tick is 0.05 s
+C_Timer = { After = function(s, fn) timers[#timers + 1] = { due = clock + (s or 0), fn = fn } end }
 local pendingEvents = {}
 function FireEvent(e, ...)
   for _, f in ipairs(registered[e] or {}) do
@@ -143,7 +143,9 @@ function Tick(n)
   for _ = 1, (n or 1) do
     clock = clock + 0.05
     local t = timers; timers = {}
-    for _, fn in ipairs(t) do fn() end
+    for _, tm in ipairs(t) do
+      if tm.due <= clock + 1e-9 then tm.fn() else timers[#timers + 1] = tm end
+    end
     local ev = pendingEvents; pendingEvents = {}
     for _, e in ipairs(ev) do FireEvent(unpack(e)) end
     for _, f in ipairs(allFrames) do
@@ -218,29 +220,14 @@ local function rowsFor(id)
   end
   return rows
 end
+-- GatherScout reads the AH only through the full scan (ReplicateItems); a search would disturb other addons'
+-- views (Auctionator's shopping and selling tabs), so any search fails the test.
+local function noSearch() error("GatherScout must not search the auction house (only the full scan)") end
 C_AuctionHouse = {
   MakeItemKey = key,
-  GetItemKeyInfo = function() return {} end,
-  IsThrottledMessageSystemReady = function() return true end,
-  SendSearchQuery = function(k)
-    if k.itemID % 5 == 0 then
-      pendingEvents[#pendingEvents + 1] = { "ITEM_SEARCH_RESULTS_UPDATED", key(k.itemID) }
-    else
-      pendingEvents[#pendingEvents + 1] = { "COMMODITY_SEARCH_RESULTS_UPDATED", k.itemID }
-    end
-  end,
-  HasSearchResults = function() return true end,
-  HasFullCommoditySearchResults = function() return true end,
-  HasFullItemSearchResults = function() return true end,
-  GetCommoditySearchResultsQuantity = function(id) return AH_QTY[id] or 0 end,
-  GetItemSearchResultsQuantity = function(k) return AH_QTY[k.itemID] or 0 end,
-  GetNumCommoditySearchResults = function(id) return #rowsFor(id) end,
-  GetNumItemSearchResults = function(k) return #rowsFor(k.itemID) end,
-  GetCommoditySearchResultInfo = function(id, i) return rowsFor(id)[i] end,
-  GetItemSearchResultInfo = function(k, i)
-    local r = rowsFor(k.itemID)[i]
-    return r and { buyoutAmount = r.unitPrice * r.quantity, quantity = r.quantity }
-  end,
+  SendSearchQuery = noSearch,
+  SendSellSearchQuery = noSearch,
+  SendBrowseQuery = noSearch,
 }
 AuctionHouseFrame = CreateFrame("Frame", "AuctionHouseFrame")
 
@@ -248,7 +235,22 @@ AuctionHouseFrame = CreateFrame("Frame", "AuctionHouseFrame")
 function InstallAuctionator()
   local day0 = os.time({ year = 2020, month = 1, day = 1, hour = 0 })
   local today = math.floor((os.time() - day0) / 86400)
+  -- its full scan frame (Source_ModernAH/FullScan/Mixins/Frame.lua): its own 15-minute timer, then ReplicateItems
+  local fullScan = { state = {}, initiated = 0 }
+  function fullScan:CanInitiate()
+    local t = self.state.TimeOfLastReplicateScan
+    return (t ~= nil and time() - t > 60 * 15 and not self.inProgress) or t == nil
+  end
+  function fullScan:InitiateScan()
+    if not self:CanInitiate() then return end
+    self.initiated = self.initiated + 1
+    self.state.TimeOfLastReplicateScan = time()
+    self.inProgress = true
+    C_AuctionHouse.ReplicateItems()
+    C_Timer.After(2, function() self.inProgress = false end) -- Auctionator is done reading the list
+  end
   Auctionator = {
+    State = { FullScanFrameRef = fullScan },
     Constants = { SCAN_DAY_0 = day0 },
     API = { v1 = { GetAuctionPriceByItemID = function(_, id) return 5000 + id end } },
     Database = {
@@ -285,11 +287,29 @@ end
 IsShiftKeyDown = function() return false end
 InCombatLockdown = function() return false end
 
-REPL = {}  -- { {itemID, count, buyout}, ... }
-C_AuctionHouse.ReplicateItems = function() pendingEvents[#pendingEvents + 1] = { "REPLICATE_ITEM_LIST_UPDATE" } end
-C_AuctionHouse.GetNumReplicateItems = function() return #REPL end
+-- Full scan: REPL = { {itemID, count, buyout}, ... } set by the test, else auctions built from AH_QTY.
+-- The list is taken when ReplicateItems is called (like the server's snapshot); REPL_CALLS counts the calls.
+REPL = {}
+REPL_CALLS = 0
+local snapshot = {}
+C_AuctionHouse.ReplicateItems = function()
+  REPL_CALLS = REPL_CALLS + 1
+  snapshot = {}
+  if #REPL > 0 then
+    for i, r in ipairs(REPL) do snapshot[i] = r end
+  else
+    local ids = {}
+    for id in pairs(AH_QTY) do ids[#ids + 1] = id end
+    table.sort(ids)
+    for _, id in ipairs(ids) do
+      for _, r in ipairs(rowsFor(id)) do snapshot[#snapshot + 1] = { id, r.quantity, r.unitPrice * r.quantity } end
+    end
+  end
+  pendingEvents[#pendingEvents + 1] = { "REPLICATE_ITEM_LIST_UPDATE" }
+end
+C_AuctionHouse.GetNumReplicateItems = function() return #snapshot end
 C_AuctionHouse.GetReplicateItemInfo = function(i)
-  local r = REPL[i + 1]
+  local r = snapshot[i + 1]
   if not r then return nil end
   return "n", 1, r[2], 1, true, 1, 0, 0, 0, r[3], 0, false, nil, "x", "x", 0, r[1], true
 end

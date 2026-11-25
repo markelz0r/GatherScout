@@ -60,6 +60,23 @@ for _ in range(300):
     if not ns.full.active and ns.Market().lastScan:
         break
 flush()
+calls = L.eval('REPL_CALLS')
+if 'auctionator' in OPTS:
+    # with Auctionator the full scan is Auctionator's: no ReplicateItems of our own, and its timer is respected
+    atr = L.eval('Auctionator.State.FullScanFrameRef')
+    print('  Auctionator scans:', atr.initiated, 'replicate calls:', calls)
+    if atr.initiated != 1 or calls != 1:
+        sys.exit('FAIL: the full scan did not go through Auctionator')
+    for _ in range(60):
+        tick(1)  # Auctionator finishes reading the list
+    ns.Scan_Full(True)
+    tick(5)
+    flush()
+    if L.eval('REPL_CALLS') != calls:
+        sys.exit('FAIL: GatherScout asked for a full scan while Auctionator waits for its 15 minutes')
+    print('  second click within 15 min: no new request, status:', strip(ns.scan.status))
+elif calls != 1:
+    sys.exit('FAIL: expected one full scan request, got %s' % calls)
 res = ns.Compute()
 rows = [res[i] for i in range(1, len(res) + 1)]
 dr = [r for r in rows if r.m.drop]

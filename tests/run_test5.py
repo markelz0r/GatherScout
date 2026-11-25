@@ -28,7 +28,7 @@ for id in list(ns.MAT.keys()):
 fire('AUCTION_HOUSE_SHOW')
 for _ in range(4000):
     tick(1)
-    if ns.Market().lastScan and not ns.scan.active and not ns.full.active:
+    if ns.Market().lastScan and not ns.full.active:
         break
 print('default minQty:', ns.S.minQty)
 ns.UI_Toggle(); tick(2)

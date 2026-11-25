@@ -380,8 +380,6 @@ SlashCmdList.GATHERSCOUT = function(msg)
     if ns.UI_Toggle then ns.UI_Toggle() end
   elseif msg == "scan" or msg == L["cmd:scan"] then
     if ns.Scan_Full then ns.Scan_Full(true) end
-  elseif msg == "quick" or msg == L["cmd:quick"] then
-    if ns.Scan_Start then ns.Scan_Start(true) end
   elseif msg == "on" or msg == "off" or msg == "toggle" then
     if msg == "toggle" then S.enabled = not S.enabled else S.enabled = (msg == "on") end
     ns.Print(L["mob markers %s"], S.enabled and ("|cff00ff00" .. L["enabled"] .. "|r") or ("|cffff4040" .. L["disabled"] .. "|r"))
@@ -430,7 +428,7 @@ SlashCmdList.GATHERSCOUT = function(msg)
     ns.Print("debug %s", ns.debug and "on" or "off")
   else
     ns.Print("%s", L["commands: |cffffff00/gs|r — window, |cffffff00/gs scan|r — full scan (at the auction house), "
-      .. "|cffffff00/gs quick|r — quick scan of materials, |cffffff00/gs on|r / |cffffff00/gs off|r — mob markers, "
+      .. "|cffffff00/gs on|r / |cffffff00/gs off|r — mob markers, "
       .. "|cffffff00/gs minimap|r — minimap button, |cffffff00/gs reset|r — clear prices, "
       .. "|cffffff00/gs forget|r — forget learned drops"])
   end

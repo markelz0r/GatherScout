@@ -257,13 +257,12 @@ do
   local s1 = 14 + vwidth(label(sp[1])._text) + 52
   local s2 = 220 + vwidth(label(sp[2])._text) + 52
   local s3 = 420 + vwidth(label(sp[3])._text) + 10 + 54 + 52
-  local qb, fb
+  local fb -- the full scan button, bottom right
   for _, o in ipairs(created) do
-    if o._parent == frame and o._template == "UIPanelButtonTemplate" and o._pt and o._pt[1] == "BOTTOMRIGHT" then qb = o end
-    if o._parent == frame and o._template == "UIPanelButtonTemplate" and o._pt and o._pt[1] == "RIGHT" then fb = o end
+    if o._parent == frame and o._template == "UIPanelButtonTemplate" and o._pt and o._pt[1] == "BOTTOMRIGHT" then fb = o end
   end
-  local left = 990 - 14 - qb._w - 6 - fb._w
-  print(string.format("bottom: spinner1 ends %d (<220)%s, spinner2 ends %d (<420)%s, min-qty box ends %d, scan buttons start %d%s",
+  local left = 990 - 14 - fb._w
+  print(string.format("bottom: spinner1 ends %d (<220)%s, spinner2 ends %d (<420)%s, min-qty box ends %d, scan button starts %d%s",
     s1, s1 >= 216 and " OVERLAP" or "", s2, s2 >= 416 and " OVERLAP" or "", s3, left, s3 >= left - 4 and " OVERLAP" or ""))
   local hdr = {}
   for _, c in ipairs(created) do

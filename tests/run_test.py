@@ -64,19 +64,21 @@ qty[13464] = 0  # Golden Sansam: none on AH
 fire('AUCTION_HOUSE_SHOW')
 for _ in range(4000):
     tick(1)
-    if ns.scan.active is False and ns.scan.total:
+    if ns.Market().lastScan and not ns.full.active:
         break
 flush()
-print('scan done', ns.scan.done, '/', ns.scan.total, 'found', ns.scan.found)
+if not ns.Market().lastScan:
+    sys.exit('FAIL: no full scan on AH open')
+print('scan done: items', ns.Market().scanned, 'replicate calls', L.eval('REPL_CALLS'))
 
 print('== scan 2, 3h later, stock dropped')
 L.eval('ShiftTime')(3 * 3600)
 for id in list(ns.MAT.keys()):
     qty[id] = max(0, qty[id] - 40)
-ns.Scan_Start(True)
+ns.Scan_Full(True)
 for _ in range(4000):
     tick(1)
-    if not ns.scan.active:
+    if not ns.full.active:
         break
 flush()
 ns.Invalidate(); tick(1)

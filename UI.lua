@@ -780,15 +780,9 @@ local function createFrame()
   frame.spinners[2]:SetPoint("BOTTOMLEFT", 220, 12)
   frame.spinners[3]:SetPoint("BOTTOMLEFT", 420, 12)
 
-  local nMat = 0
-  for _ in pairs(ns.MAT) do nMat = nMat + 1 end
-  local quick = makeButton(frame, L["Quick scan of materials"], 150, function() ns.Scan_Start(true) end,
-    L["Quick scan of materials"],
-    string.format(L["Only the %d gathering materials, 1–2 minutes. The auction house must be open."], nMat))
-  quick:SetPoint("BOTTOMRIGHT", -14, 12)
   local fullBtn = makeButton(frame, L["Full scan"], 120, function() ns.Scan_Full(true) end,
     L["Full scan"], L["The whole auction house at once, including mob drops. The server allows it every 15 minutes. The auction house must be open."])
-  fullBtn:SetPoint("RIGHT", quick, "LEFT", -6, 0)
+  fullBtn:SetPoint("BOTTOMRIGHT", -14, 12)
 
   statusText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
   statusText:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -42, -38)
