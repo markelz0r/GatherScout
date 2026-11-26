@@ -270,9 +270,7 @@ L["poor"] = "no vale la pena"
 
 -- full scan only (Auctionator)
 L["the server sent the auction snapshot that is already counted: a new one comes 15 minutes after the last full scan."] = "el servidor envió la misma instantánea de la subasta que ya se había contado: habrá una nueva 15 minutos después del último escaneo completo."
-L["Full scan: no answer"] = "Escaneo completo: sin respuesta"
-L["the server sent no full scan: it allows one every 15 minutes (another addon may have just done one). The data of the last scan stays."] = "el servidor no envió el escaneo completo: permite uno cada 15 minutos (quizá otro accesorio acaba de hacer uno). Se mantienen los datos del último escaneo."
+L["Full scan: no answer yet"] = "Escaneo completo: aún sin respuesta"
+L["the server has not sent the full scan for 2 minutes: a big auction house can take longer, or the server's 15-minute limit is not over yet (another addon may have just done a scan). If it still comes, it is read; until then the data of the last scan stays."] = "el servidor lleva 2 minutos sin enviar el escaneo completo: una casa de subastas grande puede tardar más, o aún no pasan los 15 minutos del servidor (quizá otro accesorio acaba de escanear). Si el escaneo llega, se leerá; mientras tanto se mantienen los datos del último escaneo."
 L["Auctionator is scanning…"] = "Auctionator está escaneando…"
-L["Full scan by Auctionator…"] = "Escaneo completo con Auctionator…"
-L["Next full scan in ~%d min"] = "Próximo escaneo completo en ~%d min"
-L["With Auctionator the scan is done by Auctionator: both addons get the data"] = "Con Auctionator, el escaneo lo hace Auctionator: ambos accesorios reciben los datos"
+L["With Auctionator the full scan is done by Auctionator and both addons get the data once it has finished: keep the auction house open until then."] = "Con Auctionator, el escaneo completo lo hace Auctionator y ambos addons reciben los datos cuando termina: deja la casa de subastas abierta hasta entonces."

@@ -272,9 +272,7 @@ L["poor"] = "不值得"
 
 -- full scan only (Auctionator)
 L["the server sent the auction snapshot that is already counted: a new one comes 15 minutes after the last full scan."] = "伺服器傳回的拍賣快照已經計算過：上次完整掃描15分鐘後才會有新的快照。"
-L["Full scan: no answer"] = "完整掃描：無回應"
-L["the server sent no full scan: it allows one every 15 minutes (another addon may have just done one). The data of the last scan stays."] = "伺服器沒有傳送完整掃描資料：每15分鐘只允許一次（可能其他插件剛掃描過）。保留上次掃描的資料。"
+L["Full scan: no answer yet"] = "完整掃描：尚無回應"
+L["the server has not sent the full scan for 2 minutes: a big auction house can take longer, or the server's 15-minute limit is not over yet (another addon may have just done a scan). If it still comes, it is read; until then the data of the last scan stays."] = "伺服器2分鐘內沒有傳送完整掃描資料：拍賣場很大時可能需要更久，或伺服器的15分鐘限制尚未結束（可能其他插件剛掃描過）。資料一到就會讀取；在此之前保留上次掃描的資料。"
 L["Auctionator is scanning…"] = "Auctionator 正在掃描…"
-L["Full scan by Auctionator…"] = "透過 Auctionator 完整掃描…"
-L["Next full scan in ~%d min"] = "約%d分鐘後可再次完整掃描"
-L["With Auctionator the scan is done by Auctionator: both addons get the data"] = "安裝 Auctionator 時由 Auctionator 掃描：兩個插件都能取得資料"
+L["With Auctionator the full scan is done by Auctionator and both addons get the data once it has finished: keep the auction house open until then."] = "安裝 Auctionator 時由 Auctionator 進行完整掃描，完成後兩個插件都能取得資料：在此之前請不要關閉拍賣場。"

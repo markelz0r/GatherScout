@@ -6,7 +6,7 @@ GatherScout is an Auction House helper for **World of Warcraft: Forever**. It sc
 
 ### Features
 
-- **Auction House scan.** A full scan reads the whole AH in a few seconds (the server allows one every 15 minutes). With Auctionator installed, GatherScout asks Auctionator to run the full scan, so both addons get the data and neither loses its 15-minute slot; full scans Auctionator starts on its own are reused too. GatherScout never searches the AH, so it does not get in the way of Auctionator's buying and selling tabs.
+- **Auction House scan.** A full scan reads the whole AH in a few seconds (the server allows one every 15 minutes). With Auctionator installed, GatherScout asks Auctionator for the full scan, so both addons get the data, and takes it once Auctionator has finished. GatherScout never searches the AH, so it does not get in the way of Auctionator's buying and selling tabs.
 - **Market price that ignores dumping.** The price comes from the cheap part of the market (15–30% of all units) with outliers removed. A handful of items listed far below the rest does not drag it down, and the minimum price is shown separately.
 - **ScoutScore 0–100.** One colored number for how good an item is for you to earn with right now, against everything else in the list: price, how easy it is for you to get (mobs below your level count as easy, above you as hard), drop chance, demand and whether the AH buys enough of it. The list is sorted by it.
 - **Demand.** How many days the units on the AH last at the speed they leave between your own scans, adjusted for listings vs. the 7-day norm and the price trend.
@@ -23,7 +23,7 @@ GatherScout is an Auction House helper for **World of Warcraft: Forever**. It sc
 
 ### Auctionator is optional
 
-GatherScout works on its own: it scans, prices and keeps 30 days of daily history by itself. If Auctionator is installed, its history fills the days you did not scan, and the full scan is shared with it. Auctionator's prices are never used.
+GatherScout works on its own: it scans, prices and keeps 30 days of daily history by itself. If Auctionator is installed, its history fills the days you did not scan, and GatherScout reads Auctionator's scans when they finish. Prices from Auctionator's database are never used.
 
 ### Commands
 
@@ -37,6 +37,6 @@ Zone, node, mob and loot data is generated from [QuestieDB](https://github.com/Q
 
 ## GatherScout — что сейчас выгодно фармить (по-русски)
 
-Сканирует аукцион, считает спрос на сырьё собирательных профессий и на всё, что падает с мобов, и показывает, что тебе выгодно и безопасно добывать на твоём уровне и с твоими навыками: у каждого предмета ScoutScore от 0 до 100 с цветом. Мобов с нужным дропом помечает иконкой у полоски здоровья, как Questie. Есть подсказки с шансами выпадения, рыбалка, графики за 21 день и метки на карте мира. Auctionator не обязателен: если он стоит, полный скан делается через него, и данные получают оба аддона.
+Сканирует аукцион, считает спрос на сырьё собирательных профессий и на всё, что падает с мобов, и показывает, что тебе выгодно и безопасно добывать на твоём уровне и с твоими навыками: у каждого предмета ScoutScore от 0 до 100 с цветом. Мобов с нужным дропом помечает иконкой у полоски здоровья, как Questie. Есть подсказки с шансами выпадения, рыбалка, графики за 21 день и метки на карте мира. Auctionator не обязателен: если он стоит, полный скан делает он, данные получают оба аддона, а GatherScout забирает их, когда Auctionator закончит.
 
 Команды: `/gs` открывает список, `/gs scan` запускает полный скан, `/gs off` выключает пометки на мобах.

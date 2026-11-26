@@ -276,9 +276,7 @@ L["poor"] = "не стоит"
 
 -- full scan only (Auctionator)
 L["the server sent the auction snapshot that is already counted: a new one comes 15 minutes after the last full scan."] = "сервер прислал тот же снимок аукциона, что уже учтён: новый будет через 15 минут после прошлого полного скана."
-L["Full scan: no answer"] = "Полный скан: нет ответа"
-L["the server sent no full scan: it allows one every 15 minutes (another addon may have just done one). The data of the last scan stays."] = "сервер не прислал полный скан: он даёт его раз в 15 минут (возможно, его только что делал другой аддон). Остаются данные прошлого скана."
+L["Full scan: no answer yet"] = "Полный скан: ответа пока нет"
+L["the server has not sent the full scan for 2 minutes: a big auction house can take longer, or the server's 15-minute limit is not over yet (another addon may have just done a scan). If it still comes, it is read; until then the data of the last scan stays."] = "сервер 2 минуты не присылает полный скан: большой аукцион может идти дольше, или ещё не прошли 15 минут с прошлого скана (возможно, его делал другой аддон). Если скан всё же придёт, он будет прочитан; пока остаются данные прошлого скана."
 L["Auctionator is scanning…"] = "Auctionator сканирует…"
-L["Full scan by Auctionator…"] = "Полный скан через Auctionator…"
-L["Next full scan in ~%d min"] = "Полный скан через ~%d мин"
-L["With Auctionator the scan is done by Auctionator: both addons get the data"] = "С Auctionator скан делает Auctionator: данные получают оба аддона"
+L["With Auctionator the full scan is done by Auctionator and both addons get the data once it has finished: keep the auction house open until then."] = "С Auctionator полный скан делает Auctionator, и данные получают оба аддона, когда он закончит: не закрывай аукцион до этого."

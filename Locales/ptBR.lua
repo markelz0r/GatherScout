@@ -272,9 +272,7 @@ L["poor"] = "não compensa"
 
 -- full scan only (Auctionator)
 L["the server sent the auction snapshot that is already counted: a new one comes 15 minutes after the last full scan."] = "o servidor enviou os mesmos dados do leilão, já contabilizados: novos dados virão 15 minutos após a última varredura total."
-L["Full scan: no answer"] = "Varredura total: sem resposta"
-L["the server sent no full scan: it allows one every 15 minutes (another addon may have just done one). The data of the last scan stays."] = "o servidor não enviou a varredura total: ele permite uma a cada 15 minutos (talvez outro addon tenha acabado de fazer uma). Os dados da última varredura continuam valendo."
+L["Full scan: no answer yet"] = "Varredura total: ainda sem resposta"
+L["the server has not sent the full scan for 2 minutes: a big auction house can take longer, or the server's 15-minute limit is not over yet (another addon may have just done a scan). If it still comes, it is read; until then the data of the last scan stays."] = "o servidor não enviou a varredura total em 2 minutos: uma casa de leilões grande pode demorar mais, ou o limite de 15 minutos do servidor ainda não passou (talvez outro addon tenha acabado de fazer uma). Se a varredura chegar, ela será lida; até lá, os dados da última varredura continuam valendo."
 L["Auctionator is scanning…"] = "Auctionator está varrendo…"
-L["Full scan by Auctionator…"] = "Varredura total pelo Auctionator…"
-L["Next full scan in ~%d min"] = "Próxima varredura total em ~%d min"
-L["With Auctionator the scan is done by Auctionator: both addons get the data"] = "Com o Auctionator, a varredura é feita pelo Auctionator: os dois addons recebem os dados"
+L["With Auctionator the full scan is done by Auctionator and both addons get the data once it has finished: keep the auction house open until then."] = "Com o Auctionator, a varredura completa é feita pelo Auctionator e os dois addons recebem os dados quando ela termina: mantenha a Casa de Leilões aberta até lá."

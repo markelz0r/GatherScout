@@ -232,25 +232,160 @@ C_AuctionHouse = {
 AuctionHouseFrame = CreateFrame("Frame", "AuctionHouseFrame")
 
 ---------------------------------------------------------------- optional Auctionator mock
+-- Mirrors Auctionator on the modern AH (Source_ModernAH): its event bus, its settings (scan mode, auto-scan),
+-- its Scan button, the full "replicate" scan frame (reads the list in batches, then merges its data and fires
+-- ScanComplete with the parsed rows; fails when the AH closes first) and the summary scan frame (browse
+-- results -> ScanComplete). Auctionator's reading of the list is not counted in REPL_READS.
+AUCTIONATOR_CFG = { replicate_scan_3 = false, autoscan_2 = false, autoscan_interval = 15 }
+AUCTIONATOR_MERGE = 1    -- seconds Auctionator merges its data after reading the list
+AUCTIONATOR_SUMMARY = 3  -- seconds a summary scan takes
 function InstallAuctionator()
   local day0 = os.time({ year = 2020, month = 1, day = 1, hour = 0 })
   local today = math.floor((os.time() - day0) / 86400)
-  -- its full scan frame (Source_ModernAH/FullScan/Mixins/Frame.lua): its own 15-minute timer, then ReplicateItems
-  local fullScan = { state = {}, initiated = 0 }
+  local function msg(s) print("Auctionator: " .. s) end
+  local bus = { listeners = {} }
+  function bus:Register(l, names)
+    assert(l.ReceiveEvent, "ReceiveEvent method must be defined")
+    for _, n in ipairs(names) do
+      self.listeners[n] = self.listeners[n] or {}
+      table.insert(self.listeners[n], l)
+    end
+    return self
+  end
+  function bus:Fire(_, name, ...)
+    for _, l in ipairs(self.listeners[name] or {}) do l:ReceiveEvent(name, ...) end
+    return self
+  end
+  local FE = { ScanStart = "replicate_scan_start", ScanProgress = "replicate_scan_progress",
+    ScanComplete = "replicate_scan_complete", ScanFailed = "replicate_scan_failed" }
+  local IE = { ScanStart = "full_incremental_scan_start", ScanProgress = "full_incremental_scan_progress",
+    ScanComplete = "full_incremental_scan_complete", ScanFailed = "full_incremental_scan_failed",
+    PricesProcessed = "incremental_prices_processed" }
+  local state = {}
+
+  -- full scan frame (Source_ModernAH/FullScan/Mixins/Frame.lua): its own 15-minute timer, then ReplicateItems
+  local fullScan = CreateFrame("Frame")
+  fullScan.state, fullScan.initiated = state, 0
   function fullScan:CanInitiate()
     local t = self.state.TimeOfLastReplicateScan
     return (t ~= nil and time() - t > 60 * 15 and not self.inProgress) or t == nil
   end
-  function fullScan:InitiateScan()
-    if not self:CanInitiate() then return end
-    self.initiated = self.initiated + 1
-    self.state.TimeOfLastReplicateScan = time()
-    self.inProgress = true
-    C_AuctionHouse.ReplicateItems()
-    C_Timer.After(2, function() self.inProgress = false end) -- Auctionator is done reading the list
+  function fullScan:IsAutoscanReady()
+    return time() - (state.TimeOfLastReplicateScan or 0) >= AUCTIONATOR_CFG.autoscan_interval * 60 and self:CanInitiate()
   end
+  function fullScan:InitiateScan()
+    if not self:CanInitiate() then msg("a full scan can be started later"); return end
+    bus:Fire(self, FE.ScanStart)
+    state.TimeOfLastReplicateScan = time()
+    self.inProgress, self.listening = true, true
+    self.initiated = self.initiated + 1
+    msg("Starting a full scan (replicate)")
+    C_AuctionHouse.ReplicateItems()
+    bus:Fire(self, FE.ScanProgress, 0.1)
+  end
+  fullScan:RegisterEvent("REPLICATE_ITEM_LIST_UPDATE")
+  fullScan:RegisterEvent("AUCTION_HOUSE_CLOSED")
+  -- Like the real one, its batches go on after the AH closes, into the data reset by the failure, and its
+  -- 2-second timer then ends the failed scan with that remnant ("Finished processing N items").
+  fullScan:SetScript("OnEvent", function(self, e)
+    if e == "REPLICATE_ITEM_LIST_UPDATE" and self.listening then
+      self.listening, self.failed = false, false -- it unsubscribes after the first one
+      local n, i = C_AuctionHouse.GetNumReplicateItems(), 0
+      self.data = {}
+      local function finish()
+        local data = self.data
+        self.inProgress, self.data = false, {}
+        C_Timer.After(AUCTIONATOR_MERGE, function()
+          bus:Fire(self, FE.ScanProgress, 0.99)
+          bus:Fire(self, FE.ScanComplete, data)
+          msg("Finished processing " .. #data .. " items")
+        end)
+      end
+      local function batch()
+        for _ = 1, 250 do
+          if i >= n then break end
+          local r = ReplicateRow(i)
+          self.data[#self.data + 1] = { replicateInfo = { "n", 1, r[2], 1, true, 1, 0, 0, 0, r[3], 0, false, nil, "x", "x", 0, r[1], true },
+            itemLink = "x", timeLeft = 1 }
+          i = i + 1
+        end
+        if not self.failed then bus:Fire(self, FE.ScanProgress, 0.2 + i / math.max(n, 1) * 0.8) end
+        if i < n then C_Timer.After(0.01, batch); return end
+        if self.failed then C_Timer.After(2, finish) else finish() end
+      end
+      batch()
+    elseif e == "AUCTION_HOUSE_CLOSED" and self.inProgress then
+      self.inProgress, self.listening, self.failed = false, false, true
+      self.data = {}
+      msg("Full scan (replicate) failed to complete")
+      bus:Fire(self, FE.ScanFailed)
+    end
+  end)
+
+  -- summary scan frame (Source_ModernAH/IncrementalScan/Mixins/Frame.lua): browse results, one row per item
+  local inc = CreateFrame("Frame")
+  inc.state, inc.started = state, 0
+  function inc:IsAutoscanReady()
+    return time() - (state.TimeOfLastBrowseScan or 0) >= AUCTIONATOR_CFG.autoscan_interval * 60
+  end
+  function inc:InitiateScan()
+    if self.doingFullScan then msg("a scan is already in progress"); return end
+    msg("Starting a summary scan")
+    state.TimeOfLastBrowseScan = time()
+    self.doingFullScan = true
+    self.started = self.started + 1
+    bus:Fire(self, IE.ScanStart)
+    bus:Fire(self, IE.ScanProgress, 0.1)
+    C_Timer.After(AUCTIONATOR_SUMMARY, function()
+      if not self.doingFullScan then return end
+      local raw = BrowseResults()
+      self.doingFullScan = false
+      bus:Fire(self, IE.ScanProgress, 0.99)
+      msg("Finished processing " .. #raw .. " items")
+      bus:Fire(self, IE.ScanComplete, raw)
+      bus:Fire(self, IE.PricesProcessed)
+    end)
+  end
+  inc:RegisterEvent("AUCTION_HOUSE_CLOSED")
+  inc:SetScript("OnEvent", function(self, e)
+    if e == "AUCTION_HOUSE_CLOSED" and self.doingFullScan then
+      self.doingFullScan = false
+      msg("Summary scan failed")
+      bus:Fire(self, IE.ScanFailed)
+    end
+  end)
+
+  -- its AH frame (Source_ModernAH/Core/Mixin.lua): its own auto-scan, in its chosen mode
+  local ahFrame = CreateFrame("Frame")
+  ahFrame:RegisterEvent("AUCTION_HOUSE_SHOW")
+  ahFrame:SetScript("OnEvent", function()
+    if not AUCTIONATOR_CFG.autoscan_2 then return end
+    if AUCTIONATOR_CFG.replicate_scan_3 then
+      if fullScan:IsAutoscanReady() then fullScan:InitiateScan() end
+    elseif inc:IsAutoscanReady() then
+      C_Timer.After(2, function() inc:InitiateScan() end)
+    end
+  end)
+
+  -- its Scan button (Source_ModernAH/Tabs/Auctionator/Mixins/ScanButton.lua)
+  AuctionatorScanButtonMixin = {}
+  function AuctionatorScanButtonMixin:OnClick()
+    if Auctionator.Config.Get(Auctionator.Config.Options.REPLICATE_SCAN) then
+      Auctionator.State.FullScanFrameRef:InitiateScan()
+    else
+      Auctionator.State.IncrementalScanFrameRef:InitiateScan()
+    end
+  end
+
   Auctionator = {
-    State = { FullScanFrameRef = fullScan },
+    EventBus = bus,
+    FullScan = { Events = FE },
+    IncrementalScan = { Events = IE },
+    Config = {
+      Options = { REPLICATE_SCAN = "replicate_scan_3", AUTOSCAN = "autoscan_2", AUTOSCAN_INTERVAL = "autoscan_interval" },
+      Get = function(k) return AUCTIONATOR_CFG[k] end,
+    },
+    State = { FullScanFrameRef = fullScan, IncrementalScanFrameRef = inc },
     Constants = { SCAN_DAY_0 = day0 },
     API = { v1 = { GetAuctionPriceByItemID = function(_, id) return 5000 + id end } },
     Database = {
@@ -289,26 +424,57 @@ InCombatLockdown = function() return false end
 
 -- Full scan: REPL = { {itemID, count, buyout}, ... } set by the test, else auctions built from AH_QTY.
 -- The list is taken when ReplicateItems is called (like the server's snapshot); REPL_CALLS counts the calls.
+-- REPL_DELAY: seconds until the server's answer arrives (a big AH takes a while); false: no answer at all.
 REPL = {}
 REPL_CALLS = 0
+REPL_DELAY = 0
 local snapshot = {}
-C_AuctionHouse.ReplicateItems = function()
-  REPL_CALLS = REPL_CALLS + 1
-  snapshot = {}
+-- What is on the AH right now: { {itemID, count, buyout of the stack}, ... }
+local function currentAuctions()
+  local snap = {}
   if #REPL > 0 then
-    for i, r in ipairs(REPL) do snapshot[i] = r end
+    for i, r in ipairs(REPL) do snap[i] = r end
   else
     local ids = {}
     for id in pairs(AH_QTY) do ids[#ids + 1] = id end
     table.sort(ids)
     for _, id in ipairs(ids) do
-      for _, r in ipairs(rowsFor(id)) do snapshot[#snapshot + 1] = { id, r.quantity, r.unitPrice * r.quantity } end
+      for _, r in ipairs(rowsFor(id)) do snap[#snap + 1] = { id, r.quantity, r.unitPrice * r.quantity } end
     end
   end
-  pendingEvents[#pendingEvents + 1] = { "REPLICATE_ITEM_LIST_UPDATE" }
+  return snap
+end
+-- Browse results of a summary scan: one row per item, its lowest unit price and total quantity
+function BrowseResults()
+  local by, out = {}, {}
+  for _, r in ipairs(currentAuctions()) do
+    local b = by[r[1]]
+    if not b then
+      b = { itemKey = { itemID = r[1], itemLevel = 0, itemSuffix = 0, battlePetSpeciesID = 0 }, totalQuantity = 0 }
+      by[r[1]] = b
+      out[#out + 1] = b
+    end
+    local unit = math.floor(r[3] / r[2])
+    b.totalQuantity = b.totalQuantity + r[2]
+    b.minPrice = b.minPrice and math.min(b.minPrice, unit) or unit
+  end
+  return out
+end
+C_AuctionHouse.ReplicateItems = function()
+  REPL_CALLS = REPL_CALLS + 1
+  if REPL_DELAY == false then return end
+  local snap = currentAuctions()
+  local function deliver()
+    snapshot = snap
+    pendingEvents[#pendingEvents + 1] = { "REPLICATE_ITEM_LIST_UPDATE" }
+  end
+  if REPL_DELAY > 0 then C_Timer.After(REPL_DELAY, deliver) else deliver() end
 end
 C_AuctionHouse.GetNumReplicateItems = function() return #snapshot end
+function ReplicateRow(i) return snapshot[i + 1] end -- for other addons' mocks: not counted in REPL_READS
+REPL_READS = 0 -- GetReplicateItemInfo calls (cost of reading the list)
 C_AuctionHouse.GetReplicateItemInfo = function(i)
+  REPL_READS = REPL_READS + 1
   local r = snapshot[i + 1]
   if not r then return nil end
   return "n", 1, r[2], 1, true, 1, 0, 0, 0, r[3], 0, false, nil, "x", "x", 0, r[1], true

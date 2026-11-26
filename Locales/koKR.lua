@@ -272,9 +272,7 @@ L["poor"] = "비추천"
 
 -- full scan only (Auctionator)
 L["the server sent the auction snapshot that is already counted: a new one comes 15 minutes after the last full scan."] = "서버가 이미 반영된 경매장 스냅샷을 보냈습니다. 새 스냅샷은 마지막 전체 스캔 15분 후에 받을 수 있습니다."
-L["Full scan: no answer"] = "전체 스캔: 응답 없음"
-L["the server sent no full scan: it allows one every 15 minutes (another addon may have just done one). The data of the last scan stays."] = "서버가 전체 스캔을 보내지 않았습니다. 15분마다 한 번만 허용됩니다 (다른 애드온이 방금 실행했을 수 있습니다). 마지막 스캔 데이터가 유지됩니다."
+L["Full scan: no answer yet"] = "전체 스캔: 아직 응답 없음"
+L["the server has not sent the full scan for 2 minutes: a big auction house can take longer, or the server's 15-minute limit is not over yet (another addon may have just done a scan). If it still comes, it is read; until then the data of the last scan stays."] = "서버가 2분 동안 전체 스캔을 보내지 않았습니다. 경매장이 크면 더 오래 걸릴 수 있고, 서버의 15분 제한이 아직 끝나지 않았을 수도 있습니다 (다른 애드온이 방금 스캔했을 수 있습니다). 스캔이 도착하면 읽어 들이며, 그때까지 마지막 스캔 데이터가 유지됩니다."
 L["Auctionator is scanning…"] = "Auctionator 스캔 중…"
-L["Full scan by Auctionator…"] = "Auctionator로 전체 스캔…"
-L["Next full scan in ~%d min"] = "다음 전체 스캔까지 ~%d분"
-L["With Auctionator the scan is done by Auctionator: both addons get the data"] = "Auctionator가 있으면 Auctionator가 스캔합니다. 두 애드온 모두 데이터를 받습니다"
+L["With Auctionator the full scan is done by Auctionator and both addons get the data once it has finished: keep the auction house open until then."] = "Auctionator가 있으면 전체 스캔은 Auctionator가 하고, 끝나면 두 애드온 모두 데이터를 받습니다. 그때까지 경매장을 열어 두세요."

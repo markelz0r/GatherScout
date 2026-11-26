@@ -150,10 +150,91 @@ local function merge(dst, src)
   end
 end
 
+-- The auction house a character trades on (the key of its market data). With regionally unique character names
+-- (WoW Forever) there are no realm auction houses: one AH per ruleset (PvE, PvP, RP, RPPvP, HC) and faction, and
+-- GetRealmName() is a server label that changes (it was "… Realm 5 PvE", later empty). Auctionator groups its data
+-- the same way (Source_ModernAH/Variables/Main.lua). Elsewhere: realm and faction.
+local function regionalNames()
+  return RegionalUniqueNamesEnabled and RegionalUniqueNamesEnabled() and true or false
+end
+
+local function rulesetName()
+  local G, E = C_GameRules, Enum and Enum.GameRule
+  if not (G and G.IsGameRuleActive and E) then return "PvE" end
+  local function on(rule)
+    if rule == nil then return false end
+    local ok, v = pcall(G.IsGameRuleActive, rule)
+    return ok and v and true or false
+  end
+  local pvp, rp = on(E.PvPRuleset), on(E.RPRuleset)
+  if pvp and rp then return "RPPvP" end
+  if pvp then return "PvP" end
+  if rp then return "RP" end
+  if on(E.HardcoreRuleset) then return "HC" end
+  return "PvE"
+end
+
 function ns.RealmKey()
-  local realm = (GetRealmName and GetRealmName()) or "?"
   local faction = (UnitFactionGroup and UnitFactionGroup("player")) or "?"
+  if regionalNames() then return rulesetName() .. "-" .. faction end
+  local realm = (GetRealmName and GetRealmName()) or "?"
   return realm .. "-" .. faction
+end
+
+-- Folds market data kept under another key into the current one: daily aggregates by day, snapshots by time,
+-- the newer current values win.
+local function mergeMarketItem(dst, src)
+  if not dst then return src end
+  dst.d = dst.d or {}
+  for day, s in pairs(src.d or {}) do
+    local d = dst.d[day]
+    if not d then
+      dst.d[day] = s
+    else
+      if s[1] then d[1] = d[1] and math.min(d[1], s[1]) or s[1] end
+      if s[2] then d[2] = d[2] and math.max(d[2], s[2]) or s[2] end
+      if s[3] then d[3] = math.max(d[3] or 0, s[3]) end
+      local n1, n2 = d[5] or 0, s[5] or 0
+      if s[4] then d[4] = d[4] and (d[4] * n1 + s[4] * n2) / math.max(1, n1 + n2) or s[4] end
+      d[5] = n1 + n2
+    end
+  end
+  local h = {}
+  for _, s in ipairs(src.h or {}) do h[#h + 1] = s end
+  for _, s in ipairs(dst.h or {}) do h[#h + 1] = s end
+  table.sort(h, function(a, b) return a[1] < b[1] end)
+  while #h > 40 do table.remove(h, 1) end -- the scanner trims to its own limits at the next scan
+  dst.h = h
+  if (src.t or 0) > (dst.t or 0) then dst.t, dst.q, dst.min, dst.p = src.t, src.q, src.min, src.p end
+  dst.lp = dst.lp or src.lp
+  return dst
+end
+
+-- With regional names, data that earlier versions kept under the server label ("<label>-Horde", or "-Horde" when
+-- the label was empty) belongs to this AH: same faction, and a label that is empty or ends with this ruleset.
+function ns.MigrateMarkets()
+  if not regionalNames() then return end
+  local key = ns.RealmKey()
+  local faction = key:match("%-(%a+)$")
+  local ruleset = rulesetName()
+  local moved = {}
+  for k, m in pairs(ns.db.market) do
+    local label, f = k:match("^(.*)%-(%a+)$")
+    if k ~= key and f == faction and type(m) == "table" and type(m.items) == "table" then
+      local last = label and label:match("(%S+)%s*$")
+      if label == "" or label == "?" or last == ruleset then moved[#moved + 1] = k end
+    end
+  end
+  if #moved == 0 then return end
+  table.sort(moved, function(a, b) return (ns.db.market[a].lastScan or 0) < (ns.db.market[b].lastScan or 0) end)
+  local cur = ns.db.market[key] or { items = {}, lastScan = 0, scanned = 0 }
+  for _, k in ipairs(moved) do
+    local old = ns.db.market[k]
+    for id, rec in pairs(old.items) do cur.items[id] = mergeMarketItem(cur.items[id], rec) end
+    if (old.lastScan or 0) > (cur.lastScan or 0) then cur.lastScan, cur.scanned = old.lastScan, old.scanned end
+    ns.db.market[k] = nil
+  end
+  ns.db.market[key] = cur
 end
 
 function ns.Market()
@@ -345,6 +426,7 @@ ns.On("ADDON_LOADED", function(name)
 end)
 
 ns.On("PLAYER_LOGIN", function()
+  pcall(ns.MigrateMarkets)
   ns.ReadProfessions()
   if ns.UI_Init then ns.UI_Init() end
   if ns.Mobs_Init then ns.Mobs_Init() end

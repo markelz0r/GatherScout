@@ -1,9 +1,8 @@
 -- GatherScout AH scanner: the full scan only. C_AuctionHouse.ReplicateItems() returns the whole AH at once and the
 -- server allows it once every 15 minutes, per character, whoever asks.
---  * With Auctionator on the modern AH the scan is asked of Auctionator (its full scan frame): one scan, both
---    addons get the data. Auctionator reads only the scans it started itself, so a scan of ours would leave it
---    without data and block its own for 15 minutes.
---  * Full scans that other addons start (Auctionator's button or auto-scan) are picked up as well.
+--  * With Auctionator on the modern AH the full scan is done by Auctionator (see "Auctionator" below): GatherScout
+--    asks Auctionator for it, both addons get the data, and GatherScout takes it when Auctionator has finished.
+--  * Full scans that other addons start are picked up as well.
 --  * Nothing else touches the AH: no searches, so Auctionator's shopping and selling views are never disturbed.
 -- Stores per item: market price (cheap part of the market, see marketPrice), min price, total quantity, and a
 -- history of snapshots that the demand model uses.
@@ -103,8 +102,8 @@ local function store(results)
 end
 
 ---------------------------------------------------------------- full scan (ReplicateItems)
--- full.active: a scan is asked for or being read; full.requested: the next replicate list answers our request
--- (ours or the one we asked Auctionator for); full.processing: the list is being read.
+-- full.active: a scan is asked for, running in Auctionator or being read; full.requested: the next replicate list
+-- answers our own request (open until the list comes or the AH closes); full.processing: a list is being read.
 local full = { active = false }
 ns.full = full
 local REPLICATE_COOLDOWN = 15 * 60 + 5
@@ -113,77 +112,68 @@ function ns.Scan_FullReady()
   return time() - (ns.db.lastReplicate or 0) >= REPLICATE_COOLDOWN
 end
 
--- Auctionator's full scan frame when Auctionator runs on the modern AH, else nil. An internal object of another
--- addon: only looked up when needed and called through pcall.
-local function auctionatorScan()
-  local st = Auctionator and Auctionator.State
-  local f = st and st.FullScanFrameRef
-  if type(f) == "table" and type(f.InitiateScan) == "function" and type(f.CanInitiate) == "function" then
-    return f
-  end
-end
-ns.AuctionatorScan = auctionatorScan
-
--- Minutes until Auctionator allows its next full scan (its own 15-minute timer), or nil
-local function auctionatorWait(f)
-  local t = type(f.state) == "table" and f.state.TimeOfLastReplicateScan
-  if type(t) ~= "number" then return nil end
-  local left = 15 * 60 - (time() - t)
-  return left > 0 and math.ceil(left / 60) or nil
+-- One auction of the client's replicate list: quantity, buyout of the whole stack, itemID
+local function replicateRow(i)
+  local _, _, count, _, _, _, _, _, _, buyout, _, _, _, _, _, _, itemID = C_AuctionHouse.GetReplicateItemInfo(i)
+  return count, buyout, itemID
 end
 
 -- Fingerprint of the replicate list: the client keeps the last list, and an event without fresh server data
 -- must not be stored again as a "new" scan with today's timestamp.
 local lastFingerprint
 
-local function fingerprint(AH, n)
+local function fingerprint(read, n)
   local acc = n
   local step = math.max(1, math.floor(n / 400))
   for i = 0, n - 1, step do
-    local _, _, count, _, _, _, _, _, _, buyout, _, _, _, _, _, _, itemID = AH.GetReplicateItemInfo(i)
+    local count, buyout, itemID = read(i)
     acc = (acc * 31 + (itemID or 0) * 7 + (count or 0) * 13 + (buyout or 0)) % 2147483647
   end
   return acc
 end
 
--- Returns true when a new snapshot is being processed. Only reads the list (GetReplicateItemInfo), so it never
--- gets in the way of another addon reading the same list.
-local function processReplicate(source)
-  if full.processing then return false end
-  local AH = C_AuctionHouse
-  local n = AH.GetNumReplicateItems and AH.GetNumReplicateItems() or 0
-  if n <= 0 then return false end
-  local fp = fingerprint(AH, n)
-  if fp == lastFingerprint then
-    -- The client fires the event again for a list it has already sent (e.g. when item data arrives later;
-    -- Auctionator unsubscribes after the first one for that reason). A repeat nobody asked for changes
-    -- nothing: the status keeps the result of the real scan. Only our own request gets an answer.
-    if source ~= "mine" then return false end
-    full.active, full.wait = false, nil
-    setStatus(L["Full scan: no new data"])
-    ns.Print("%s", L["the server sent the auction snapshot that is already counted: a new one comes 15 minutes after the last full scan."])
-    return false
+-- Reads a list of n auctions, read(i) -> quantity, buyout of the stack, itemID (i from 0), and stores the snapshot.
+-- source: "mine" (our own request, or Auctionator's scan we asked for), "other" (another addon's full scan) or
+-- "auctionator" (a full scan Auctionator started by itself).
+-- clientList: the list is the client's replicate list, which is fingerprinted and needs the AH open.
+-- Returns true when a new snapshot is being processed. Only reads, so it never gets in the way of another addon.
+local function readList(source, n, read, clientList)
+  if full.processing or n <= 0 then return false end
+  if clientList then
+    local fp = fingerprint(read, n)
+    if fp == lastFingerprint then
+      -- The client fires the event again for a list it has already sent (e.g. when item data arrives later;
+      -- Auctionator unsubscribes after the first one for that reason). A repeat nobody asked for changes
+      -- nothing: the status keeps the result of the real scan. Only our own request gets an answer.
+      if source ~= "mine" then return false end
+      full.active, full.wait = false, nil
+      setStatus(L["Full scan: no new data"])
+      ns.Print("%s", L["the server sent the auction snapshot that is already counted: a new one comes 15 minutes after the last full scan."])
+      return false
+    end
+    lastFingerprint = fp
   end
-  lastFingerprint = fp
   full.processing, full.active, full.wait = true, true, nil
   local acc, i, started = {}, 0, GetTime()
   local ticker
   ticker = C_Timer.NewTicker(0, function()
-    if not ns.ahOpen then
+    if clientList and not ns.ahOpen then
       ticker:Cancel()
       full.processing, full.active = false, false
       setStatus(L["Full scan stopped"])
       return
     end
-    local stop = math.min(n, i + 2000)
+    -- at most 2000 auctions or ~4 ms a frame, so reading a big AH keeps the frame rate
+    local stop, t0 = math.min(n, i + 2000), debugprofilestop and debugprofilestop()
     while i < stop do
-      local _, _, count, _, _, _, _, _, _, buyout, _, _, _, _, _, _, itemID = AH.GetReplicateItemInfo(i)
+      local count, buyout, itemID = read(i)
       if itemID and count and count > 0 and buyout and buyout > 0 and ns.IsTracked(itemID) then
         local t = acc[itemID]
         if not t then t = {}; acc[itemID] = t end
         t[#t + 1] = { buyout / count, count }
       end
       i = i + 1
+      if t0 and i % 250 == 0 and debugprofilestop() - t0 > 4 then break end
     end
     setStatus(string.format(L["Full scan: %d%%"], math.floor(i / n * 100)))
     if i < n then return end
@@ -208,35 +198,183 @@ local function processReplicate(source)
     store(results)
     full.processing, full.active = false, false
     setStatus(string.format(L["Full scan: %s auctions, %d tracked"], ns.Num(n), found))
-    ns.Print(source == "other"
-      and L["full scan (data from another addon): %s auctions in %d s, tracked items on the auction house: %d."]
-      or L["full scan: %s auctions in %d s, tracked items on the auction house: %d."],
+    ns.Print(source == "mine"
+      and L["full scan: %s auctions in %d s, tracked items on the auction house: %d."]
+      or L["full scan (data from another addon): %s auctions in %d s, tracked items on the auction house: %d."],
       ns.Num(n), math.floor(GetTime() - started + 0.5), found)
     ns.Invalidate()
   end)
   return true
 end
 
--- Fires for our own request, for the scans we ask Auctionator for, for full scans other addons start on their
--- own and again for a list already sent. The 15-minute timer moves only when a new snapshot arrives.
-ns.On("REPLICATE_ITEM_LIST_UPDATE", function()
-  if not ns.ahOpen then return end
-  local mine = full.requested
-  full.requested = nil
-  if processReplicate(mine and "mine" or "other") then
-    ns.db.lastReplicate = math.max(ns.db.lastReplicate or 0, time())
+local function processReplicate(source)
+  if full.processing then return false end
+  local AH = C_AuctionHouse
+  local n = AH.GetNumReplicateItems and AH.GetNumReplicateItems() or 0
+  return readList(source, n, replicateRow, true)
+end
+
+local function newSnapshot()
+  ns.db.lastReplicate = math.max(ns.db.lastReplicate or 0, time())
+end
+
+---------------------------------------------------------------- Auctionator
+-- With Auctionator on the modern AH the full scan is done by Auctionator: the server allows one per 15 minutes and
+-- Auctionator reads only the scans it started itself, so GatherScout asks Auctionator for it (on a click and with
+-- our auto-scan when the AH opens) and both addons get the data.
+--  * GatherScout takes the data when Auctionator has finished (its scan-complete event), not while Auctionator
+--    still works on the list. Auctionator's scan fails if the AH closes before it is done.
+--  * Auctionator's summary scan (its default mode for its own Scan button) is not used: its prices are the lowest
+--    listing of each item, not a market price.
+-- Auctionator's internals are looked up when needed and called through pcall; its events reach a listener that
+-- never lets an error of ours into Auctionator's code.
+local function auctionatorScan()
+  local A = Auctionator
+  local f = type(A) == "table" and type(A.State) == "table" and A.State.FullScanFrameRef
+  if type(f) == "table" and type(f.InitiateScan) == "function" and type(f.CanInitiate) == "function" then
+    return f
   end
+end
+ns.AuctionatorScan = auctionatorScan
+
+local hooked = false    -- Auctionator's full scan events reach us
+local EVENT = {}        -- Auctionator's full scan event name -> "ScanStart" | "ScanProgress" | ...
+local atrBusy = false   -- Auctionator's full scan is under way: the list is Auctionator's to read, we wait for its data
+local atrAsked = false  -- that scan is the one we asked for
+local atrFailed = false -- it failed: what Auctionator hands out afterwards is a remnant, not a scan
+
+-- Auctionator is busy with its full scan
+local function auctionatorBusy(f)
+  return atrBusy or f.inProgress == true
+end
+
+-- Auctionator's scan is over and nothing of it is being read: the button is free again
+local function auctionatorDone()
+  if full.active and not full.processing then
+    full.active = false
+    setStatus(nil)
+  end
+end
+
+-- What Auctionator read, once it has finished
+local function readAuctionator(data)
+  local source = atrAsked and "mine" or "auctionator"
+  atrAsked = false
+  if full.processing then return end
+  -- The client still holds the list Auctionator read: read it whole (Auctionator leaves out the items whose data
+  -- did not load in time).
+  local AH = C_AuctionHouse
+  local n = ns.ahOpen and AH.GetNumReplicateItems and AH.GetNumReplicateItems() or 0
+  local started
+  if n > 0 then
+    started = processReplicate(source)
+  else
+    -- The AH is closed by now: Auctionator's own copy of the list,
+    -- { replicateInfo = { C_AuctionHouse.GetReplicateItemInfo(i) }, itemLink, timeLeft } per auction
+    local read = function(i)
+      local e = data[i + 1]
+      local info = type(e) == "table" and e.replicateInfo
+      if type(info) ~= "table" then return nil end
+      return info[3], info[10], info[17]
+    end
+    started = readList(source, #data, read, false)
+  end
+  if started then newSnapshot() else auctionatorDone() end
+end
+
+local function onAuctionatorEvent(name, ...)
+  local what = EVENT[name]
+  if not what then return end
+  if what == "ScanStart" or what == "ScanProgress" then
+    if what == "ScanStart" then
+      atrFailed = false
+    elseif atrFailed then
+      return -- Auctionator winding up a failed scan (see ScanComplete)
+    end
+    atrBusy = true
+    if full.processing then return end
+    full.active = true
+    local p = what == "ScanProgress" and tonumber((...))
+    setStatus(p and string.format("%s %d%%", L["Auctionator is scanning…"], math.floor(p * 100))
+      or L["Auctionator is scanning…"])
+  elseif what == "ScanFailed" then
+    atrBusy, atrAsked, atrFailed = false, false, true
+    auctionatorDone()
+  elseif what == "ScanComplete" then
+    atrBusy = false
+    local data = ...
+    -- After a failure Auctionator still ends the scan with whatever it read after the AH closed ("finished
+    -- processing 0 items"): not a scan.
+    if atrFailed or type(data) ~= "table" then
+      atrAsked = false
+      auctionatorDone()
+      return
+    end
+    -- read it on the next frame, outside Auctionator's code
+    C_Timer.After(0, function() readAuctionator(data) end)
+  end
+end
+
+local listener = {}
+function listener:ReceiveEvent(name, ...)
+  local ok, err = pcall(onAuctionatorEvent, name, ...)
+  if not ok and ns.debug then ns.Print("Auctionator event %s: %s", tostring(name), tostring(err)) end
+end
+
+local function hookAuctionator()
+  local A = Auctionator
+  if hooked or not auctionatorScan() or type(A.EventBus) ~= "table" or type(A.EventBus.Register) ~= "function" then return end
+  local events = type(A.FullScan) == "table" and A.FullScan.Events
+  if type(events) ~= "table" then return end
+  local names = {}
+  for _, what in ipairs({ "ScanStart", "ScanProgress", "ScanComplete", "ScanFailed" }) do
+    local name = events[what]
+    if type(name) == "string" then
+      EVENT[name] = what
+      names[#names + 1] = name
+    end
+  end
+  if #names > 0 then hooked = pcall(A.EventBus.Register, A.EventBus, listener, names) end
+end
+ns.On("PLAYER_LOGIN", hookAuctionator)
+
+-- Fires for our own request, for full scans other addons start and again for a list already sent: the client
+-- repeats it while item data loads, thousands of times when Auctionator reads a scan (Auctionator itself
+-- unsubscribes after the first one). Auctionator's full scan is left to Auctionator (its data comes when it has
+-- finished, see above). Our own request is answered at once; a list nobody here asked for is looked at only
+-- when it can be new (the server sends one at most every 15 minutes, so not within 15 minutes of the last one)
+-- and at most once a second, so the repeats cost nothing. The 15-minute timer moves only when a new snapshot
+-- arrives.
+local otherPending = false
+ns.On("REPLICATE_ITEM_LIST_UPDATE", function()
+  if not ns.ahOpen or full.processing then return end
+  local atr = hooked and auctionatorScan()
+  if atr and auctionatorBusy(atr) then return end
+  if full.requested then
+    full.requested = nil
+    if processReplicate("mine") then newSnapshot() end
+    return
+  end
+  if otherPending or time() - (ns.db.lastReplicate or 0) < REPLICATE_COOLDOWN - 5 then return end
+  otherPending = true
+  C_Timer.After(1, function()
+    otherPending = false
+    if ns.ahOpen and not full.processing and not full.requested and processReplicate("other") then newSnapshot() end
+  end)
 end)
 
--- Waits for the server's answer; without one the data of the last scan stays
-local function waitForData(sec)
+-- Waits for the server's answer. A big AH can take the server a minute or more to send, so the request stays
+-- open until the AH is closed: a list that comes late is still read as ours. After ANSWER_WAIT seconds without
+-- one the button is free again and the chat says why nothing came yet; the data of the last scan stays.
+local ANSWER_WAIT = 120
+local function waitForData()
   local token = {}
   full.wait = token
-  C_Timer.After(sec, function()
+  C_Timer.After(ANSWER_WAIT, function()
     if full.wait == token and full.active and not full.processing then
-      full.active, full.requested, full.wait = false, nil, nil
-      setStatus(L["Full scan: no answer"])
-      ns.Print("%s", L["the server sent no full scan: it allows one every 15 minutes (another addon may have just done one). The data of the last scan stays."])
+      full.active, full.wait = false, nil -- full.requested stays: a late answer is still ours
+      setStatus(L["Full scan: no answer yet"])
+      ns.Print("%s", L["the server has not sent the full scan for 2 minutes: a big auction house can take longer, or the server's 15-minute limit is not over yet (another addon may have just done a scan). If it still comes, it is read; until then the data of the last scan stays."])
     end
   end)
 end
@@ -258,33 +396,36 @@ function ns.Scan_Full(manual)
   end
   local atr = auctionatorScan()
   if atr then
-    if atr.inProgress then
+    hookAuctionator()
+    if auctionatorBusy(atr) then
       -- Auctionator is scanning already: its data comes to us too
       setStatus(L["Auctionator is scanning…"])
+      if manual then ns.Print("%s", L["a scan is already running…"]) end
       return
     end
     local ok, can = pcall(atr.CanInitiate, atr)
-    if ok and can then
-      full.active, full.requested = true, true
-      setStatus(L["Full scan by Auctionator…"])
-      if pcall(atr.InitiateScan, atr) then
-        waitForData(30)
-        return
-      end
-      full.active, full.requested = false, nil -- Auctionator failed to start it: ask the server ourselves
-    elseif ok then
-      -- Auctionator's 15-minute timer is running: a scan of ours now would leave Auctionator without data
-      local wait = auctionatorWait(atr)
-      setStatus(wait and string.format(L["Next full scan in ~%d min"], wait) or nil)
-      if manual then pcall(atr.InitiateScan, atr) end -- Auctionator says when its next scan is possible
+    if ok and not can then
+      -- Auctionator's 15-minute timer is running: a scan of ours now would leave Auctionator without data.
+      -- On a click Auctionator says itself when its next scan is possible.
+      if manual then pcall(atr.InitiateScan, atr) end
       return
     end
+    if ok then
+      atrAsked = true
+      if pcall(atr.InitiateScan, atr) and auctionatorBusy(atr) then
+        full.active = true -- Auctionator's events show its progress (without them: until we read its list)
+        if not hooked then setStatus(L["Auctionator is scanning…"]) end
+        return
+      end
+      atrAsked = false
+    end
+    -- an Auctionator we do not know how to ask: scan ourselves (it gets no data from that scan)
   end
   if not manual and not ns.Scan_FullReady() then return end
   full.active, full.requested = true, true
   setStatus(L["Full scan: waiting for the server…"])
   C_AuctionHouse.ReplicateItems()
-  waitForData(15)
+  waitForData()
 end
 
 ---------------------------------------------------------------- AH open/close + button
@@ -342,8 +483,9 @@ local function createButton()
     tt:SetOwner(self, "ANCHOR_NONE")
     tt:AddLine("GatherScout")
     tt:AddLine(L["Left-click: full scan of the whole auction house at once (the server allows it every 15 min)"], 1, 1, 1)
-    if auctionatorScan() then
-      tt:AddLine(L["With Auctionator the scan is done by Auctionator: both addons get the data"], 0.7, 0.7, 0.7)
+    local atr = auctionatorScan()
+    if atr then
+      tt:AddLine(L["With Auctionator the full scan is done by Auctionator and both addons get the data once it has finished: keep the auction house open until then."], 0.7, 0.7, 0.7, true)
     end
     tt:AddLine(L["Right-click: open the “what to farm” list"], 1, 1, 1)
     local m = ns.Market()
@@ -351,7 +493,7 @@ local function createButton()
       tt:AddLine(string.format(L["Last scan: %d min ago"], math.floor((time() - m.lastScan) / 60)), 0.7, 0.7, 0.7)
     end
     local wait = REPLICATE_COOLDOWN - (time() - (ns.db.lastReplicate or 0))
-    if wait > 0 then
+    if wait > 0 and not atr then
       tt:AddLine(string.format(L["Full scan by our timer: in ~%d min"], math.ceil(wait / 60)), 0.7, 0.7, 0.7)
     end
     tt:Show()
@@ -382,13 +524,15 @@ ns.On("AUCTION_HOUSE_SHOW", function()
   ns.ahOpen = true
   createButton()
   if button then button:Show() end
+  hookAuctionator()
   local S = ns.S
+  -- Give other addons a moment: one that starts a full scan on opening the AH (Auctionator with its own auto-scan
+  -- on) gets it, and we take the same data. Otherwise we ask (with Auctionator: Auctionator).
   if S.autoScan then
-    -- give Auctionator a moment: with its own auto-scan on it starts the full scan and we just read the result
     C_Timer.After(4, function()
       if not ns.ahOpen or full.active then return end
       local atr = auctionatorScan()
-      if atr and atr.inProgress then return end
+      if atr and auctionatorBusy(atr) then return end
       local stale = (time() - (ns.Market().lastScan or 0)) > S.autoScanMinutes * 60
       if stale and ns.Scan_FullReady() then ns.Scan_Full(false) end
     end)
@@ -398,10 +542,12 @@ end)
 
 ns.On("AUCTION_HOUSE_CLOSED", function()
   ns.ahOpen = false
-  -- a request still waiting for the server is dropped; a list being read stops by itself (see processReplicate)
-  if full.active and not full.processing then
+  -- a request still waiting for the server is dropped; the client's list being read stops by itself (readList).
+  -- Auctionator says itself whether its scan failed or still finishes (its data can come after closing).
+  atrBusy = false
+  if not full.processing then
+    if full.active then setStatus(nil) end
     full.active, full.requested, full.wait = false, nil, nil
-    setStatus(nil)
   end
   if ns.UI_Refresh then ns.UI_Refresh() end
 end)

@@ -1,3 +1,38 @@
+# 1.4.1
+
+- Low frame rate at the Auction House after a full scan: while Auctionator loads item data for a scan, the
+  game repeats the "scan list updated" event over and over, and GatherScout re-checked the whole list each
+  time. Repeats are now dropped without touching the list (a new list cannot come within 15 minutes), and
+  reading a scan takes at most ~4 ms a frame.
+- A full scan the server sends later than 30 seconds (a big auction house) was reported as "the server sent no
+  full scan" and then read as data from another addon. GatherScout now waits for it: only after 2 minutes the
+  chat says the scan has not come yet, and if it comes later it is still read as yours.
+- Auctionator: GatherScout still asks Auctionator for the full scan (both addons get the data), but now takes
+  the data when Auctionator has finished instead of reading the list alongside it. Keep the AH open until
+  Auctionator says it has finished processing: closing it earlier makes the scan fail for both. What
+  Auctionator hands out after a failed scan ("finished processing 0 items") is not taken as a scan.
+- WoW Forever: market data is kept per auction house, i.e. ruleset (PvE, PvP, …) and faction, as Auctionator
+  does. The server name there is a label that changed (later it was empty), which split the history: the
+  earlier days seemed lost. Data saved under the old labels is merged back at login.
+
+---
+
+- Низкий FPS у аукциона после полного скана: пока Auctionator подгружает данные предметов для скана, игра
+  раз за разом повторяет событие «список скана обновлён», и GatherScout каждый раз заново проверял весь
+  список. Теперь повторы отбрасываются, не трогая список (новый список не придёт раньше чем через
+  15 минут), а чтение скана занимает не больше ~4 мс за кадр.
+- Полный скан, который сервер присылает позже чем через 30 секунд (большой аукцион), объявлялся как
+  «сервер не прислал полный скан», а потом читался как данные другого аддона. Теперь GatherScout его ждёт:
+  только через 2 минуты в чате появится, что скан пока не пришёл, а если он придёт позже, он всё равно
+  будет прочитан как твой.
+- Auctionator: GatherScout по-прежнему просит полный скан у Auctionator (данные получают оба аддона), но
+  теперь забирает данные, когда Auctionator закончит, а не читает список параллельно с ним. Не закрывай
+  аукцион, пока Auctionator не напишет, что закончил обработку: если закрыть раньше, скан сорвётся у обоих.
+  То, что Auctionator выдаёт после сорванного скана («Закончил обработку 0 предметов»), сканом не считается.
+- WoW Forever: данные аукциона хранятся по аукциону — правилам (PvE, PvP, …) и фракции, как у Auctionator.
+  Название сервера там — метка, которая сменилась (потом стала пустой), из-за чего история разделилась и
+  прошлые дни будто пропали. Данные под старыми названиями при входе в игру собираются обратно.
+
 # 1.4.0
 
 - Only the full scan is left: the quick scan searched the materials one by one and took minutes. The button
